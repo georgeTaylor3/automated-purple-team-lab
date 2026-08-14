@@ -1,0 +1,517 @@
+#!/usr/bin/env bash
+
+# ---------------------------------------------------------------------------
+# Repository security scanner
+# ---------------------------------------------------------------------------
+#
+# This script checks files that Git could commit.
+#
+# It uses three pattern files:
+#
+#   security-scan-critical-patterns.txt
+#       Higher-risk patterns.
+#       Matches are shown in red.
+#
+#   security-scan-patterns.txt
+#       Normal review patterns.
+#       Matches are shown in yellow.
+#
+#   security-scan-patterns.local
+#       Local patterns such as usernames, hostnames, or local paths.
+#       This file is ignored by Git.
+#       Matches are shown in yellow.
+#
+# Critical and reviewable matches can be manually approved after they
+# have been reviewed.
+#
+# The script returns:
+#
+#   0 = scan passed
+#   1 = scan failed, could not run, or review was not approved
+#
+# ---------------------------------------------------------------------------
+
+set -u
+
+
+# ---------------------------------------------------------------------------
+# Terminal colors
+# ---------------------------------------------------------------------------
+
+RED='\033[1;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[1;32m'
+CYAN='\033[1;36m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
+
+# ---------------------------------------------------------------------------
+# Output symbols
+# ---------------------------------------------------------------------------
+
+CHECK="✓"
+WARNING="⚠"
+CROSS="✗"
+
+
+# ---------------------------------------------------------------------------
+# Find the Git repository root
+# ---------------------------------------------------------------------------
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+
+if [[ -z "$REPO_ROOT" ]]; then
+    printf '%b\n' \
+        "${RED}${CROSS} ERROR: Run this script from inside the Git repository.${RESET}"
+
+    exit 1
+fi
+
+cd "$REPO_ROOT" || exit 1
+
+
+# ---------------------------------------------------------------------------
+# Pattern files
+# ---------------------------------------------------------------------------
+
+CRITICAL_PATTERNS="security-scan-critical-patterns.txt"
+REVIEW_PATTERNS="security-scan-patterns.txt"
+LOCAL_PATTERNS="security-scan-patterns.local"
+
+
+# ---------------------------------------------------------------------------
+# Make sure the required public pattern files exist
+# ---------------------------------------------------------------------------
+
+if [[ ! -f "$CRITICAL_PATTERNS" ]]; then
+    printf '%b\n' \
+        "${RED}${CROSS} Missing required file: $CRITICAL_PATTERNS${RESET}"
+
+    exit 1
+fi
+
+if [[ ! -f "$REVIEW_PATTERNS" ]]; then
+    printf '%b\n' \
+        "${RED}${CROSS} Missing required file: $REVIEW_PATTERNS${RESET}"
+
+    exit 1
+fi
+
+
+# ---------------------------------------------------------------------------
+# Get the list of files Git could commit
+# ---------------------------------------------------------------------------
+#
+# git ls-files --cached
+#     Includes files already tracked by Git.
+#
+# git ls-files --others
+#     Includes new untracked files.
+#
+# --exclude-standard
+#     Removes files ignored through .gitignore and normal Git ignore rules.
+#
+# -z
+#     Uses a null character between filenames.
+#
+# Using -z lets this work safely with filenames containing spaces.
+# ---------------------------------------------------------------------------
+
+mapfile -d '' -t GIT_FILES < <(
+    git ls-files \
+        --cached \
+        --others \
+        --exclude-standard \
+        -z
+)
+
+
+# ---------------------------------------------------------------------------
+# Remove scanner pattern files from the scan target list
+# ---------------------------------------------------------------------------
+#
+# The public pattern files contain the patterns themselves, so scanning them
+# would cause false positives.
+#
+# The local pattern file is ignored by Git anyway, but it is excluded here
+# explicitly as an extra precaution.
+# ---------------------------------------------------------------------------
+
+SCAN_FILES=()
+
+for FILE in "${GIT_FILES[@]}"; do
+
+    case "$FILE" in
+
+        "$CRITICAL_PATTERNS"|"$REVIEW_PATTERNS"|"$LOCAL_PATTERNS")
+            continue
+            ;;
+
+        *)
+            SCAN_FILES+=("$FILE")
+            ;;
+
+    esac
+
+done
+
+
+# ---------------------------------------------------------------------------
+# Make sure there is something to scan
+# ---------------------------------------------------------------------------
+
+if [[ "${#SCAN_FILES[@]}" -eq 0 ]]; then
+    echo
+    printf '%b\n' "${GREEN}${CHECK} No Git-visible files are available to scan.${RESET}"
+    echo
+
+    exit 0
+fi
+
+
+# ---------------------------------------------------------------------------
+# Status flags
+# ---------------------------------------------------------------------------
+
+CRITICAL_FOUND=0
+REVIEW_FOUND=0
+
+
+# ---------------------------------------------------------------------------
+# Search for one pattern
+# ---------------------------------------------------------------------------
+#
+# grep options:
+#
+#   -n  show line number
+#   -H  always show filename
+#   -I  ignore binary files
+#   -E  use extended regular expressions
+#
+# "--" tells grep that everything after it should be treated as data rather
+# than command-line options. This prevents a pattern beginning with "-"
+# from being mistaken for a grep option.
+# ---------------------------------------------------------------------------
+
+search_pattern() {
+
+    local PATTERN="$1"
+
+    grep \
+        -nHIE \
+        -- \
+        "$PATTERN" \
+        "${SCAN_FILES[@]}"
+}
+
+
+# ---------------------------------------------------------------------------
+# Scan critical patterns
+# ---------------------------------------------------------------------------
+
+scan_critical_file() {
+
+    local PATTERN_FILE="$1"
+    local FILE_FOUND=0
+    local PATTERN
+    local MATCHES
+
+    printf '%b\n' "${BOLD}Using pattern file:${RESET} $PATTERN_FILE"
+
+    while IFS= read -r PATTERN || [[ -n "$PATTERN" ]]; do
+
+        # Ignore blank lines.
+        [[ -z "$PATTERN" ]] && continue
+
+        # Ignore comment lines.
+        [[ "$PATTERN" =~ ^[[:space:]]*# ]] && continue
+
+        MATCHES="$(search_pattern "$PATTERN" 2>/dev/null || true)"
+
+        if [[ -n "$MATCHES" ]]; then
+
+            FILE_FOUND=1
+            CRITICAL_FOUND=1
+
+            echo
+            printf '%b\n' "${RED}${CROSS} CRITICAL MATCH${RESET}"
+            printf '%b\n' "${RED}Pattern:${RESET} $PATTERN"
+            printf '%b\n' "${RED}Output:${RESET}"
+            printf '%b\n' "${RED}${MATCHES}${RESET}"
+
+        fi
+
+    done < "$PATTERN_FILE"
+
+    if [[ "$FILE_FOUND" -eq 0 ]]; then
+        printf '%b\n' "${GREEN}${CHECK} Clear${RESET}"
+    fi
+}
+
+
+# ---------------------------------------------------------------------------
+# Scan reviewable patterns
+# ---------------------------------------------------------------------------
+
+scan_review_file() {
+
+    local PATTERN_FILE="$1"
+    local FILE_FOUND=0
+    local PATTERN
+    local MATCHES
+
+    if [[ ! -f "$PATTERN_FILE" ]]; then
+        return 0
+    fi
+
+    printf '%b\n' "${BOLD}Using pattern file:${RESET} $PATTERN_FILE"
+
+    while IFS= read -r PATTERN || [[ -n "$PATTERN" ]]; do
+
+        # Ignore blank lines.
+        [[ -z "$PATTERN" ]] && continue
+
+        # Ignore comment lines.
+        [[ "$PATTERN" =~ ^[[:space:]]*# ]] && continue
+
+        MATCHES="$(search_pattern "$PATTERN" 2>/dev/null || true)"
+
+        if [[ -n "$MATCHES" ]]; then
+
+            FILE_FOUND=1
+            REVIEW_FOUND=1
+
+            echo
+            printf '%b\n' "${YELLOW}${WARNING} REVIEWABLE MATCH${RESET}"
+            printf '%b\n' "${YELLOW}Pattern:${RESET} $PATTERN"
+            printf '%b\n' "${YELLOW}Output:${RESET}"
+            printf '%b\n' "${YELLOW}${MATCHES}${RESET}"
+
+        fi
+
+    done < "$PATTERN_FILE"
+
+    if [[ "$FILE_FOUND" -eq 0 ]]; then
+        printf '%b\n' "${GREEN}${CHECK} Clear${RESET}"
+    fi
+}
+
+
+# ---------------------------------------------------------------------------
+# Read an answer directly from the terminal
+# ---------------------------------------------------------------------------
+#
+# Git hooks use standard input for their own data.
+#
+# Reading from /dev/tty makes sure the security question comes from the
+# keyboard instead of accidentally reading Git's hook input.
+#
+# If there is no interactive terminal, the scanner fails closed instead of
+# automatically approving a finding.
+# ---------------------------------------------------------------------------
+
+read_from_terminal() {
+
+    local PROMPT="$1"
+    local VARIABLE_NAME="$2"
+
+    if [[ ! -r /dev/tty ]]; then
+
+        echo
+        printf '%b\n' \
+            "${RED}${CROSS} No interactive terminal is available for security review.${RESET}"
+
+        return 1
+    fi
+
+    read -r -p "$PROMPT" "$VARIABLE_NAME" < /dev/tty
+}
+
+
+# ---------------------------------------------------------------------------
+# Start scan
+# ---------------------------------------------------------------------------
+
+echo
+printf '%b\n' "${CYAN}============================================================${RESET}"
+printf '%b\n' "${CYAN} REPOSITORY SECURITY SCAN${RESET}"
+printf '%b\n' "${CYAN}============================================================${RESET}"
+echo
+
+printf '%b\n' "${BOLD}Files being checked:${RESET} ${#SCAN_FILES[@]}"
+echo
+
+
+# ---------------------------------------------------------------------------
+# Critical scan
+# ---------------------------------------------------------------------------
+
+printf '%b\n' "${CYAN}------------------------------------------------------------${RESET}"
+printf '%b\n' "${CYAN} CRITICAL PATTERNS${RESET}"
+printf '%b\n' "${CYAN}------------------------------------------------------------${RESET}"
+echo
+
+scan_critical_file "$CRITICAL_PATTERNS"
+
+
+# ---------------------------------------------------------------------------
+# Critical review
+# ---------------------------------------------------------------------------
+
+if [[ "$CRITICAL_FOUND" -ne 0 ]]; then
+
+    echo
+    printf '%b\n' "${RED}============================================================${RESET}"
+    printf '%b\n' "${RED} CRITICAL REVIEW REQUIRED${RESET}"
+    printf '%b\n' "${RED}============================================================${RESET}"
+    echo
+
+    printf '%b\n' \
+        "${RED}One or more higher-risk patterns were found.${RESET}"
+
+    echo
+    echo "Read every red match before continuing."
+    echo
+
+    if ! read_from_terminal \
+        "Have you reviewed EVERY critical match and confirmed it is safe? [y/N]: " \
+        CRITICAL_ANSWER; then
+
+        exit 1
+    fi
+
+    case "${CRITICAL_ANSWER,,}" in
+
+        y|yes)
+
+            echo
+            printf '%b\n' \
+                "${GREEN}${CHECK} Critical matches manually approved.${RESET}"
+            ;;
+
+        *)
+
+            echo
+            printf '%b\n' \
+                "${RED}${CROSS} Critical security review not approved.${RESET}"
+
+            echo
+            exit 1
+            ;;
+
+    esac
+
+fi
+
+
+# ---------------------------------------------------------------------------
+# Reviewable scan
+# ---------------------------------------------------------------------------
+
+echo
+printf '%b\n' "${CYAN}------------------------------------------------------------${RESET}"
+printf '%b\n' "${CYAN} REVIEWABLE PATTERNS${RESET}"
+printf '%b\n' "${CYAN}------------------------------------------------------------${RESET}"
+echo
+
+scan_review_file "$REVIEW_PATTERNS"
+
+echo
+
+if [[ -f "$LOCAL_PATTERNS" ]]; then
+
+    scan_review_file "$LOCAL_PATTERNS"
+
+else
+
+    printf '%b\n' "${BOLD}Using pattern file:${RESET} $LOCAL_PATTERNS"
+    printf '%b\n' "${GREEN}${CHECK} Not present - skipped${RESET}"
+
+fi
+
+
+# ---------------------------------------------------------------------------
+# Review normal matches
+# ---------------------------------------------------------------------------
+
+if [[ "$REVIEW_FOUND" -ne 0 ]]; then
+
+    echo
+    printf '%b\n' "${YELLOW}============================================================${RESET}"
+    printf '%b\n' "${YELLOW} REVIEW REQUIRED${RESET}"
+    printf '%b\n' "${YELLOW}============================================================${RESET}"
+    echo
+
+    echo "One or more reviewable patterns were found."
+    echo
+    echo "A match does not automatically mean the file contains a secret."
+    echo "Read every yellow match before continuing."
+    echo
+
+    if ! read_from_terminal \
+        "Have you reviewed every reviewable match and confirmed it is safe? [y/N]: " \
+        REVIEW_ANSWER; then
+
+        exit 1
+    fi
+
+    case "${REVIEW_ANSWER,,}" in
+
+        y|yes)
+
+            echo
+            printf '%b\n' \
+                "${GREEN}${CHECK} Reviewable matches manually approved.${RESET}"
+            ;;
+
+        *)
+
+            echo
+            printf '%b\n' \
+                "${RED}${CROSS} Security review not approved.${RESET}"
+
+            echo
+            exit 1
+            ;;
+
+    esac
+
+fi
+
+
+# ---------------------------------------------------------------------------
+# Final result
+# ---------------------------------------------------------------------------
+
+echo
+printf '%b\n' "${GREEN}============================================================${RESET}"
+printf '%b\n' "${GREEN} SECURITY SCAN PASSED${RESET}"
+printf '%b\n' "${GREEN}============================================================${RESET}"
+echo
+
+if [[ "$CRITICAL_FOUND" -eq 0 && "$REVIEW_FOUND" -eq 0 ]]; then
+
+    printf '%b\n' \
+        "${GREEN}${CHECK} No configured sensitive patterns were found.${RESET}"
+
+elif [[ "$CRITICAL_FOUND" -ne 0 && "$REVIEW_FOUND" -ne 0 ]]; then
+
+    printf '%b\n' \
+        "${GREEN}${CHECK} Critical and reviewable matches were manually approved.${RESET}"
+
+elif [[ "$CRITICAL_FOUND" -ne 0 ]]; then
+
+    printf '%b\n' \
+        "${GREEN}${CHECK} Critical matches were manually approved.${RESET}"
+
+else
+
+    printf '%b\n' \
+        "${GREEN}${CHECK} Reviewable matches were manually approved.${RESET}"
+
+fi
+
+echo
+
+exit 0

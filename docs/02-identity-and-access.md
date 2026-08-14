@@ -1,0 +1,106 @@
+# Identity and Access
+
+## Goal
+
+Different parts of the lab should use different accounts.
+
+My admin account should not be used by the demo site or other automated
+services.
+
+The public demo account should have very limited access.
+
+## My admin account
+
+My admin accounts will use MFA.
+
+When my YubiKey is available, I plan to use it where it is supported.
+
+This may include:
+
+- GitHub
+- Google account
+- Google Cloud
+- Elastic Cloud
+- SSH
+- Git commit signing
+
+I may also test YubiKey authentication for Linux admin access later.
+
+## Service accounts
+
+Automation should have its own account.
+
+Examples include:
+
+- Terraform
+- demo controller
+- Elastic configuration scripts
+- CALDERA integration
+- detection tests
+
+A service should only get the permissions it needs.
+
+ex: the demo contrller only gets what it needs to initialize the attack for caldera.
+
+## Demo users
+
+Demo users will be separate from admin users.
+
+They may be allowed to:
+
+- view demo dashboards
+- view selected security events
+- start ONLY approved simulations
+- stat simulation so they can see when finished
+
+They should not be allowed to:
+
+- change Elastic settings
+- change detection rules
+- access Elastic API keys
+- access CALDERA directly
+- enter arbitrary commands
+- choose arbitrary targets
+- access SSH
+- change cloud infrastructure
+
+## Human accounts and service accounts
+
+I want to keep these separate.
+
+Human account:
+
+    me
+     |
+     v
+    MFA / YubiKey
+     |
+     v
+    admin access
+
+Service account:
+
+    application
+       |
+       v
+    limited credentials
+       |
+       v
+    only the API access it needs
+
+Demo account:
+
+    demo user
+       |
+       v
+    limited permissions
+       |
+       v
+    demo functions only
+
+## Recovery
+
+Before I require the YubiKey for an important admin account, I need to make
+sure I have a recovery method.
+
+I also plan to use a backup hardware key later.

@@ -1,0 +1,13 @@
+# Critical security patterns
+#
+# These usually deserve extra attention.
+# The scanner will show these as critical matches.
+
+github_pat_
+ghp_
+gho_
+
+BEGIN OPENSSH PRIVATE KEY
+BEGIN RSA PRIVATE KEY
+BEGIN EC PRIVATE KEY
+BEGIN .*PRIVATE KEY

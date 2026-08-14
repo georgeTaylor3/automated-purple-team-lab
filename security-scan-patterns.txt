@@ -1,0 +1,12 @@
+# Reviewable security patterns
+#
+# These may be harmless.
+# The scanner will show them so I can read the match before continuing.
+
+password
+passwd
+secret
+token
+api[_-]?key
+private[_-]?key
+/home/[A-Za-z0-9._-]+
