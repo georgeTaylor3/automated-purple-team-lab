@@ -20,7 +20,7 @@ The lab will provide a controlled purple-team workflow:
 
 ## Portfolio Skills Demonstrated
 
-This project is intended to demonstrate practical experience with:
+This is a learning expereince that includes:
 
 - cloud security architecture
 - Infrastructure as Code
