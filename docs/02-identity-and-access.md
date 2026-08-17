@@ -98,6 +98,16 @@ Demo account:
        v
     demo functions only
 
+## Current administrator authentication
+
+The administrator account uses a YubiKey 5 NFC for Google and GitHub authentication.
+
+Google Cloud administration is performed through the administrator's Google account.
+
+Local Terraform uses Application Default Credentials as the source identity and then impersonates the dedicated Terraform service account.
+
+The YubiKey is for human authentication. Automated workloads do not depend on a physical security key.
+
 ## Recovery
 
 Before I require the YubiKey for an important admin account, I need to make
