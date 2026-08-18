@@ -1,0 +1,3 @@
+bucket                      = "ur-globally-unique-terraform-state-bucket"
+prefix                      = "automated-purple-team-lab/state"
+impersonate_service_account = "terraform-deployer@ur-google-cloud-project-id.iam.gserviceaccount.com"

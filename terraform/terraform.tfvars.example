@@ -1,3 +1,6 @@
 project_id                = "your-google-cloud-project-id"
 region                    = "us-central1"
-terraform_service_account = "terraform-deployer@your-google-cloud-project-id.iam.gserviceaccount.com"`:wq
+terraform_service_account = "terraform-deployer@your-google-cloud-project-id.iam.gserviceaccount.com"
+
+control_subnet_cidr = "10.60.10.0/24"
+target_subnet_cidr  = "10.60.20.0/24"
