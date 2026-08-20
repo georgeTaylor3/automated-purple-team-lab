@@ -104,3 +104,79 @@ resource "google_compute_firewall" "deny_caldera_to_target" {
     metadata = "EXCLUDE_ALL_METADATA"
   }
 }
+
+resource "google_compute_firewall" "allow_caldera_https_egress" {
+  name        = "allow-caldera-https-egress"
+  description = "Allow the CALDERA control workload outbound HTTPS for provisioning, updates, and required dependencies."
+
+  network   = google_compute_network.lab.name
+  direction = "EGRESS"
+  priority  = 2500
+
+  destination_ranges = [
+    "0.0.0.0/0"
+  ]
+
+  target_service_accounts = [
+    local.caldera_control_service_account
+  ]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["443"]
+  }
+
+  log_config {
+    metadata = "EXCLUDE_ALL_METADATA"
+  }
+}
+
+resource "google_compute_firewall" "deny_caldera_other_egress" {
+  name        = "deny-caldera-other-egress"
+  description = "Deny CALDERA control workload egress that is not explicitly allowed by a higher-priority rule."
+
+  network   = google_compute_network.lab.name
+  direction = "EGRESS"
+  priority  = 3000
+
+  destination_ranges = [
+    "0.0.0.0/0"
+  ]
+
+  target_service_accounts = [
+    local.caldera_control_service_account
+  ]
+
+  deny {
+    protocol = "all"
+  }
+
+  log_config {
+    metadata = "EXCLUDE_ALL_METADATA"
+  }
+}
+
+resource "google_compute_firewall" "deny_target_other_egress" {
+  name        = "deny-target-other-egress"
+  description = "Deny target workload egress that is not explicitly allowed by a higher-priority rule."
+
+  network   = google_compute_network.lab.name
+  direction = "EGRESS"
+  priority  = 3000
+
+  destination_ranges = [
+    "0.0.0.0/0"
+  ]
+
+  target_service_accounts = [
+    local.purple_target_service_account
+  ]
+
+  deny {
+    protocol = "all"
+  }
+
+  log_config {
+    metadata = "EXCLUDE_ALL_METADATA"
+  }
+}
