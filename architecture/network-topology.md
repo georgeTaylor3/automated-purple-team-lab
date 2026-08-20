@@ -16,13 +16,11 @@ flowchart TB
             router["Cloud Router<br/>purple-team-router"]
             nat["Cloud NAT<br/>control-cloud-nat"]
 
-            subgraph control["`Control subnet
-            10.60.10.0/24`"]
+            subgraph control["Control subnet (10.60.10.0/24)"]
                 caldera["Planned CALDERA control VM<br/>Service account: caldera-control-sa"]
             end
 
-            subgraph target["`Target subnet
-            10.60.20.0/24`"]
+            subgraph target["Target subnet (10.60.20.0/24)"]
                 purple["Planned purple-team target VM<br/>Service account: purple-target-sa"]
             end
 
