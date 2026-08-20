@@ -82,7 +82,7 @@ to reduce log volume.
 ## Security model
 
 Cloud NAT provides address translation. It does not evaluate rules for outbound
-traffic. i.e. the router routs the firewall rules assess if the packets can go 
+traffic. i.e. the router routs the firewall rules assess if the packets can go
 to a place.
 
 VPC firewall rules determine which traffic a workload may initiate before that
