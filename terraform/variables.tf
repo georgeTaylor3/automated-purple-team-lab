@@ -25,3 +25,9 @@ variable "target_subnet_cidr" {
   type        = string
   default     = "10.60.20.0/24"
 }
+
+variable "workstation_subnet_cidr" {
+  description = "IPv4 CIDR range used by the Windows workstation subnet."
+  type        = string
+  default     = "10.60.30.0/24"
+}

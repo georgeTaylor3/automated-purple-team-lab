@@ -1,7 +1,7 @@
 # Network Topology
 
 This diagram represents the current network design and the planned placement of
-the CALDERA control and purple-team target workloads.
+the CALDERA control and target workloads.
 
 The workload nodes are marked as planned because the Compute Engine instances
 have not been created yet.
@@ -9,19 +9,24 @@ have not been created yet.
 ```mermaid
 flowchart TB
     internet["Public Internet"]
+    kms["Google Windows KMS (35.190.247.13/32)"]
 
     subgraph gcp["Google Cloud"]
         subgraph vpc["purple-team-vpc"]
 
-            router["Cloud Router<br/>purple-team-router"]
-            nat["Cloud NAT<br/>control-cloud-nat"]
+            router["Cloud Router (purple-team-router)"]
+            nat["Cloud NAT (control-cloud-nat)"]
 
             subgraph control["Control subnet (10.60.10.0/24)"]
-                caldera["Planned CALDERA control VM<br/>Service account: caldera-control-sa"]
+                caldera["Planned CALDERA control VM (caldera-control-sa)"]
             end
 
-            subgraph target["Target subnet (10.60.20.0/24)"]
-                purple["Planned purple-team target VM<br/>Service account: purple-target-sa"]
+            subgraph server["Server target subnet (10.60.20.0/24)"]
+                web["Planned Linux web server (web-target-sa)"]
+            end
+
+            subgraph workstation["Workstation subnet (10.60.30.0/24)"]
+                windows["Planned Windows endpoint (workstation-target-sa)"]
             end
 
         end
@@ -29,14 +34,21 @@ flowchart TB
 
     router -. "NAT control plane" .-> nat
 
-    caldera -->|"TCP 443 allowed"| nat
+    caldera -->|"TCP 443 only"| nat
     nat -->|"Public NAT"| internet
 
-    purple -->|"TCP 8888 allowed"| caldera
+    web -->|"TCP 8888 CALDERA C2"| caldera
+    windows -->|"TCP 8888 CALDERA C2"| caldera
 
-    caldera -. "New connections denied" .-> purple
-    purple -. "No general Internet egress" .-> internet
-```
+    windows -->|"TCP 443 business flow"| web
+
+    windows -->|"TCP 1688 activation / renewal"| kms
+
+    caldera -. "New connections denied" .-> web
+    caldera -. "New connections denied" .-> windows
+
+    web -. "General Internet egress denied; no Cloud NAT" .-> internet
+    windows -. "General Internet egress denied; no Cloud NAT" .-> internet
 
 ## Current trust rules
 

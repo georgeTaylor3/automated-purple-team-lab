@@ -4,3 +4,4 @@ terraform_service_account = "terraform-deployer@your-google-cloud-project-id.iam
 
 control_subnet_cidr = "10.60.10.0/24"
 target_subnet_cidr  = "10.60.20.0/24"
+workstation_subnet_cidr = "10.60.30.0/24"

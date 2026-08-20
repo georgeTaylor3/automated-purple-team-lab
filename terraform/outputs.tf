@@ -17,3 +17,8 @@ output "target_subnet_name" {
   description = "Name of the subnet used by target lab systems."
   value       = google_compute_subnetwork.target.name
 }
+
+output "workstation_subnet_name" {
+  description = "Name of the Windows workstation subnet."
+  value       = google_compute_subnetwork.workstation.name
+}

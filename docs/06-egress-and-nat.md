@@ -11,7 +11,8 @@ dependencies. further on I will introduce firewall allow when a maintenance
 period is needed. Then eventually I will host all required update management
 functions internally.
 
-The purple-team target does not require general Internet access.
+The purple-team targets does not require general Internet access except for the google
+windows kms tcp port.
 
 I will never use public IP address bound to a VM. There is no need with modern
 routing/fw/proxy functions/devices.
@@ -46,7 +47,7 @@ Possible future controls include:
 
 ## Target workload egress
 
-Workloads using `purple-target-sa` may initiate CALDERA C2 traffic on TCP port
+Workloads web and workstation sa's may initiate CALDERA C2 traffic on TCP port
 8888.
 
 Other traffic toward the control subnet is denied.

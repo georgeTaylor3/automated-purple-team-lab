@@ -18,3 +18,11 @@ resource "google_compute_subnetwork" "target" {
   network                  = google_compute_network.lab.id
   private_ip_google_access = true
 }
+
+resource "google_compute_subnetwork" "workstation" {
+  name                     = "workstation-subnet"
+  ip_cidr_range            = var.workstation_subnet_cidr
+  region                   = var.region
+  network                  = google_compute_network.lab.id
+  private_ip_google_access = true
+}

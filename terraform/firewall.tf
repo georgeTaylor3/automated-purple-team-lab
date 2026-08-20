@@ -1,18 +1,20 @@
 locals {
   caldera_control_service_account = "caldera-control-sa@${var.project_id}.iam.gserviceaccount.com"
-  purple_target_service_account   = "purple-target-sa@${var.project_id}.iam.gserviceaccount.com"
+  web_target_service_account      = "web-target-sa@${var.project_id}.iam.gserviceaccount.com"
+  workstation_service_account     = "workstation-target-sa@${var.project_id}.iam.gserviceaccount.com"
 }
 
 resource "google_compute_firewall" "allow_target_to_caldera_c2_ingress" {
   name        = "allow-target-to-caldera-c2"
-  description = "Allow the purple-team target workload to initiate CALDERA C2 traffic on TCP 8888."
+  description = "Allow the purple-team target workloads to initiate CALDERA C2 traffic on TCP 8888."
 
   network   = google_compute_network.lab.name
   direction = "INGRESS"
   priority  = 1000
 
   source_service_accounts = [
-    local.purple_target_service_account
+    local.web_target_service_account,
+    local.workstation_service_account
   ]
 
   target_service_accounts = [
@@ -31,7 +33,7 @@ resource "google_compute_firewall" "allow_target_to_caldera_c2_ingress" {
 
 resource "google_compute_firewall" "allow_target_to_caldera_c2_egress" {
   name        = "allow-target-to-caldera-c2-egress"
-  description = "Allow the purple-team target workload to send CALDERA C2 traffic to the control subnet on TCP 8888."
+  description = "Allow the purple-team target workloads to send CALDERA C2 traffic to the control subnet on TCP 8888."
 
   network   = google_compute_network.lab.name
   direction = "EGRESS"
@@ -42,12 +44,91 @@ resource "google_compute_firewall" "allow_target_to_caldera_c2_egress" {
   ]
 
   target_service_accounts = [
-    local.purple_target_service_account
+    local.web_target_service_account,
+    local.workstation_service_account
   ]
 
   allow {
     protocol = "tcp"
     ports    = ["8888"]
+  }
+
+  log_config {
+    metadata = "EXCLUDE_ALL_METADATA"
+  }
+}
+
+resource "google_compute_firewall" "allow_workstation_to_web_https_ingress" {
+  name        = "allow-workstation-to-web-https"
+  description = "Allow the Windows workstation workload to access the Linux web workload over HTTPS."
+
+  network   = google_compute_network.lab.name
+  direction = "INGRESS"
+  priority  = 1200
+
+  source_service_accounts = [
+    local.workstation_service_account
+  ]
+
+  target_service_accounts = [
+    local.web_target_service_account
+  ]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["443"]
+  }
+
+  log_config {
+    metadata = "EXCLUDE_ALL_METADATA"
+  }
+}
+
+resource "google_compute_firewall" "allow_workstation_to_web_https_egress" {
+  name        = "allow-workstation-to-web-https-egress"
+  description = "Allow the Windows workstation workload to initiate HTTPS traffic to the server target subnet."
+
+  network   = google_compute_network.lab.name
+  direction = "EGRESS"
+  priority  = 1200
+
+  destination_ranges = [
+    var.target_subnet_cidr
+  ]
+
+  target_service_accounts = [
+    local.workstation_service_account
+  ]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["443"]
+  }
+
+  log_config {
+    metadata = "EXCLUDE_ALL_METADATA"
+  }
+}
+
+resource "google_compute_firewall" "allow_workstation_windows_kms_egress" {
+  name        = "allow-workstation-windows-kms"
+  description = "Allow the Windows workstation workload to reach Google Windows KMS for activation and renewal."
+
+  network   = google_compute_network.lab.name
+  direction = "EGRESS"
+  priority  = 500
+
+  destination_ranges = [
+    "35.190.247.13/32"
+  ]
+
+  target_service_accounts = [
+    local.workstation_service_account
+  ]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["1688"]
   }
 
   log_config {
@@ -68,7 +149,8 @@ resource "google_compute_firewall" "deny_target_to_control" {
   ]
 
   target_service_accounts = [
-    local.purple_target_service_account
+    local.web_target_service_account,
+    local.workstation_service_account
   ]
 
   deny {
@@ -82,14 +164,15 @@ resource "google_compute_firewall" "deny_target_to_control" {
 
 resource "google_compute_firewall" "deny_caldera_to_target" {
   name        = "deny-caldera-to-target"
-  description = "Deny new connections initiated by the CALDERA workload toward the target subnet."
+  description = "Deny new connections initiated by the CALDERA workload toward the target subnets."
 
   network   = google_compute_network.lab.name
   direction = "EGRESS"
   priority  = 2000
 
   destination_ranges = [
-    var.target_subnet_cidr
+    var.target_subnet_cidr,
+    var.workstation_subnet_cidr
   ]
 
   target_service_accounts = [
@@ -169,7 +252,8 @@ resource "google_compute_firewall" "deny_target_other_egress" {
   ]
 
   target_service_accounts = [
-    local.purple_target_service_account
+    local.web_target_service_account,
+    local.workstation_service_account
   ]
 
   deny {

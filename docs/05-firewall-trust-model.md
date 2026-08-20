@@ -1,12 +1,12 @@
 # Firewall Trust Model
 
-The project separates control-side workloads from purple-team target workloads and
+The project separates control-side workloads from target (web abd workstation)  workloads and
 allows communication only when required.
 
 The initial firewall policy is built around 2 workload identities:
 
 - `caldera-control-sa` for the CALDERA control workload
-- `purple-target-sa` for purple-team target systems
+- `web-target-sa, workstation-target-sa` for target systems that emulate business workloads
 
 These service accounts are attached to planned Compute Engine workloads and are
 used as firewall selectors. They are not used by the workloads to log into one
@@ -34,12 +34,12 @@ zones even though they are part of the same VPC.
 
 ## CALDERA communication
 
-The initial CALDERA communication model allows a purple-team target to initiate
+The initial CALDERA communication model allows a vm in target workloads to initiate
 a connection to the CALDERA control workload on TCP port 8888.
 
 The intended flow is:
 
-    purple-target-sa
+    web-target-sa, workstation-target-sa
             |
             | TCP 8888
             v
@@ -57,7 +57,7 @@ arriving at CALDERA is ingress to the CALDERA workload.
 Direction: ingress
 
 This rule allows TCP port 8888 into workloads using `caldera-control-sa` when
-the traffic originates from a workload using `purple-target-sa`.
+the traffic originates from a workload using `web-target-sa, workstation-target-sa`.
 
 The service accounts identify the workloads participating in the connection.
 
@@ -65,7 +65,7 @@ The service accounts identify the workloads participating in the connection.
 
 Direction: egress
 
-This rule allows workloads using `purple-target-sa` to send TCP port 8888
+This rule allows workloads using `web-target-sa, workstation-target-sa` to send TCP port 8888
 traffic toward the control subnet.
 
 It has priority 1000 so this specific exception is evaluated before the broader
@@ -75,7 +75,7 @@ target-to-control deny rule.
 
 Direction: egress
 
-This rule denies other traffic from workloads using `purple-target-sa` toward
+This rule denies other traffic from workloads using `web-target-sa, workstation-target-sa` toward
 the control subnet.
 
 It has priority 2000.
@@ -122,7 +122,7 @@ The custom role contains firewall create, read, list, update, and delete
 permissions.
 
 Terraform also has Service Account User permission directly on
-`caldera-control-sa` and `purple-target-sa`. These grants are scoped to the
+`caldera-control-sa` and `web-target-sa, workstation-target-sa`. These grants are scoped to the
 individual workload service accounts rather than the entire project.
 
 The workload service accounts themselves currently have no project-level IAM
