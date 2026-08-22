@@ -100,6 +100,29 @@ Thumbs.db
 # ---------------------------------------------------------------------------
 backend.hcl
 
+# -----------------------------------------------------------------------------
+# Packer
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Packer
+# -----------------------------------------------------------------------------
+
+# Packer build cache. Generated locally and not part of the source repository.
+packer_cache/
+
+# Local Packer variable files can contain environment-specific values such as
+# real GCP project IDs and service-account addresses.
+#
+# Public examples should use a filename such as:
+#
+#   windows-workstation.pkrvars.example.hcl
+#
+# which intentionally does not match these patterns.
+*.pkrvars.hcl
+*.auto.pkrvars.hcl
+# Packer build cache. Generated locally and not part of the source repository.
+packer_cache/
+
 # ---------------------------------------------------------------------------
 # Saved Terraform execution plans
 # ---------------------------------------------------------------------------

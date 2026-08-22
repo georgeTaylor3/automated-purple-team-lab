@@ -114,3 +114,30 @@ Before I require the YubiKey for an important admin account, I need to make
 sure I have a recovery method.
 
 I also plan to use a backup hardware key later.
+
+## packer-deployer
+
+Packer uses the same impersonation pattern as Terraform: my local ADC
+identity impersonates a dedicated packer-deployer service account, so
+Packer builds never run as me directly.
+
+packer-deployer needs permission to create and manage Compute Engine
+images, not just create/delete temporary VMs. I gave it a custom role,
+packerImageManager, instead of a broad predefined role, since it only
+needs:
+
+- compute.images.create
+- compute.images.get
+- compute.images.list
+- compute.images.delete
+- compute.images.deprecate
+- compute.images.useReadOnly
+
+I found that I needed compute.images.deprecate as Packer tries
+to deprecate the previous image in a family every time it builds a new
+one, even on the first build. Sans that permission the build
+crashed after the image was already created. packerImageManager
+is defined in terraform/iam.tf.
+
+To let Terraform manage that role, I also had to grant terraform-deployer
+roles/iam.roleAdmin, since it had no IAM permissions before this.
