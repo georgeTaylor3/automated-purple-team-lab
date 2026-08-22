@@ -22,3 +22,13 @@ output "workstation_subnet_name" {
   description = "Name of the Windows workstation subnet."
   value       = google_compute_subnetwork.workstation.name
 }
+
+output "project_id" {
+  description = "Google Cloud project ID (not the human-readable name)."
+  value       = data.google_project.current.project_id
+}
+
+output "packer_builder_service_account" {
+  description = "Runtime identity attached to temporary Packer builder VMs."
+  value       = local.packer_builder_service_account
+}

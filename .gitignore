@@ -127,3 +127,4 @@ packer_cache/
 # Saved Terraform execution plans
 # ---------------------------------------------------------------------------
 *.tfplan
+shared/lab-vars.json
