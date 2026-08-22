@@ -406,6 +406,32 @@ resource "google_compute_firewall" "allow_packer_https_egress" {
   }
 }
 
+resource "google_compute_firewall" "allow_packer_http_egress" {
+  name        = "allow-packer-http-egress"
+  description = "Allow temporary Packer builders outbound HTTP for the GCE regional apt mirror, which does not support HTTPS."
+
+  network   = google_compute_network.lab.name
+  direction = "EGRESS"
+  priority  = 2500
+
+  destination_ranges = [
+    "0.0.0.0/0"
+  ]
+
+  target_service_accounts = [
+    local.packer_builder_service_account
+  ]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80"]
+  }
+
+  log_config {
+    metadata = "EXCLUDE_ALL_METADATA"
+  }
+}
+
 resource "google_compute_firewall" "deny_packer_other_egress" {
   name        = "deny-packer-other-egress"
   description = "Deny temporary Packer builder egress that is not explicitly allowed by a higher-priority rule."
