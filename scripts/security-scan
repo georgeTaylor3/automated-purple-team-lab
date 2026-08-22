@@ -224,13 +224,16 @@ is_scanner_pattern_file() {
 #   $2 = filename
 #   $3 = line number
 #   $4 = safe label to display
+#   $5 = the matched line's content
 #
-# IMPORTANT:
+# The matched line is printed.
 #
-# The matched line itself is intentionally NOT displayed.
-#
-# This prevents a scanner that discovers a real credential from immediately
-# echoing that credential back to the terminal.
+# This was previously suppressed to avoid echoing a discovered credential
+# back to the terminal. In practice, a suppressed finding still had to be
+# investigated by manually grepping or opening the file, which put the same
+# content on the terminal anyway -- just through an extra manual step
+# instead of directly from the scanner. Printing it here is a more honest
+# reflection of what happens either way.
 # ---------------------------------------------------------------------------
 
 report_match() {
@@ -238,6 +241,7 @@ report_match() {
     local file="$2"
     local line_number="$3"
     local label="$4"
+    local matched_line="$5"
 
     local display_file
     local key
@@ -263,6 +267,9 @@ report_match() {
         printf '%b\n' \
             "${YELLOW}[REVIEW] ${display_file}:${line_number} matched ${label}${RESET}"
     fi
+
+    printf '%b\n' \
+        "    ${CYAN}${matched_line}${RESET}"
 }
 
 
@@ -349,8 +356,8 @@ load_dynamic_google_identifiers() {
 #   -n = include line number internally
 #   -I = ignore binary files
 #
-# grep's actual matching line is passed through cut and never printed.
-# Only its line number reaches report_match.
+# grep's matching line, including its content, is passed through to
+# report_match, which prints it.
 # ---------------------------------------------------------------------------
 
 scan_literal_working_tree() {
@@ -359,7 +366,9 @@ scan_literal_working_tree() {
 
     local file
     local line_number
+    local matched_line
     local absolute_file
+    local entry
 
     while IFS= read -r -d '' file; do
 
@@ -371,18 +380,21 @@ scan_literal_working_tree() {
 
         [[ -f "$absolute_file" ]] || continue
 
-        while IFS= read -r line_number; do
-            [[ -n "$line_number" ]] || continue
+        while IFS= read -r entry; do
+            [[ -n "$entry" ]] || continue
+
+            line_number="${entry%%:*}"
+            matched_line="${entry#*:}"
 
             report_match \
                 "CRITICAL" \
                 "$file" \
                 "$line_number" \
-                "$label"
+                "$label" \
+                "$matched_line"
 
         done < <(
             LC_ALL=C grep -nFI -- "$value" "$absolute_file" 2>/dev/null \
-                | cut -d: -f1 \
                 || true
         )
 
@@ -414,6 +426,8 @@ scan_literal_index() {
 
     local file
     local line_number
+    local matched_line
+    local entry
 
     while IFS= read -r -d '' file; do
 
@@ -421,19 +435,22 @@ scan_literal_index() {
             continue
         fi
 
-        while IFS= read -r line_number; do
-            [[ -n "$line_number" ]] || continue
+        while IFS= read -r entry; do
+            [[ -n "$entry" ]] || continue
+
+            line_number="${entry%%:*}"
+            matched_line="${entry#*:}"
 
             report_match \
                 "CRITICAL" \
                 "$file" \
                 "$line_number" \
-                "$label"
+                "$label" \
+                "$matched_line"
 
         done < <(
             git -C "$REPO_ROOT" show ":$file" 2>/dev/null \
                 | LC_ALL=C grep -nFI -- "$value" 2>/dev/null \
-                | cut -d: -f1 \
                 || true
         )
 
@@ -502,7 +519,9 @@ scan_regex_working_tree() {
 
     local file
     local line_number
+    local matched_line
     local absolute_file
+    local entry
 
     while IFS= read -r -d '' file; do
 
@@ -514,18 +533,21 @@ scan_regex_working_tree() {
 
         [[ -f "$absolute_file" ]] || continue
 
-        while IFS= read -r line_number; do
-            [[ -n "$line_number" ]] || continue
+        while IFS= read -r entry; do
+            [[ -n "$entry" ]] || continue
+
+            line_number="${entry%%:*}"
+            matched_line="${entry#*:}"
 
             report_match \
                 "$severity" \
                 "$file" \
                 "$line_number" \
-                "$label"
+                "$label" \
+                "$matched_line"
 
         done < <(
             LC_ALL=C grep -nEI -- "$pattern" "$absolute_file" 2>/dev/null \
-                | cut -d: -f1 \
                 || true
         )
 
@@ -547,6 +569,8 @@ scan_regex_index() {
 
     local file
     local line_number
+    local matched_line
+    local entry
 
     while IFS= read -r -d '' file; do
 
@@ -554,19 +578,22 @@ scan_regex_index() {
             continue
         fi
 
-        while IFS= read -r line_number; do
-            [[ -n "$line_number" ]] || continue
+        while IFS= read -r entry; do
+            [[ -n "$entry" ]] || continue
+
+            line_number="${entry%%:*}"
+            matched_line="${entry#*:}"
 
             report_match \
                 "$severity" \
                 "$file" \
                 "$line_number" \
-                "$label"
+                "$label" \
+                "$matched_line"
 
         done < <(
             git -C "$REPO_ROOT" show ":$file" 2>/dev/null \
                 | LC_ALL=C grep -nEI -- "$pattern" 2>/dev/null \
-                | cut -d: -f1 \
                 || true
         )
 
