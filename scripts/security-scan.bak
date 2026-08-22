@@ -1,0 +1,863 @@
+#!/usr/bin/env bash
+
+# Security scanner for automated-purple-team-lab.
+#
+# The scanner checks:
+#
+#   1. Dynamic Google Cloud identifiers:
+#        - PROJECT_ID
+#        - HUMAN_ACCOUNT
+#
+#   2. Critical patterns from:
+#        security-scan-critical-patterns.txt
+#
+#   3. Reviewable patterns from:
+#        security-scan-patterns.txt
+#
+#   4. Optional machine-specific/local patterns from:
+#        security-scan-patterns.local
+#
+# The scanner checks Git-visible working-tree files:
+#
+#   tracked files
+#   +
+#   untracked files that are not ignored
+#
+# It also scans the Git index for tracked files. This catches a case where a
+# sensitive value was staged, later removed from the working tree, but the
+# corrected version was not restaged.
+#
+# Ignored files such as terraform.tfvars are intentionally not scanned.
+#
+# Dynamic Google Cloud values are used internally as literal search strings.
+# Their actual values are NEVER printed by this script.
+#
+# Exit codes:
+#
+#   0 = scan passed, or findings were manually approved
+#   1 = finding rejected, non-interactive approval required, or scanner error
+
+
+set -uo pipefail
+
+
+# ---------------------------------------------------------------------------
+# Colors
+# ---------------------------------------------------------------------------
+
+RED=$'\033[0;31m'
+YELLOW=$'\033[0;33m'
+GREEN=$'\033[0;32m'
+CYAN=$'\033[0;36m'
+RESET=$'\033[0m'
+
+
+# ---------------------------------------------------------------------------
+# Find repository root
+# ---------------------------------------------------------------------------
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+    printf '%b\n' \
+        "${RED}[ERROR] This script must be run from inside a Git repository.${RESET}"
+    exit 1
+}
+
+cd "$REPO_ROOT" || {
+    printf '%b\n' \
+        "${RED}[ERROR] Could not change to the repository root.${RESET}"
+    exit 1
+}
+
+
+# ---------------------------------------------------------------------------
+# Pattern files
+# ---------------------------------------------------------------------------
+
+CRITICAL_PATTERN_FILE="$REPO_ROOT/security-scan-critical-patterns.txt"
+REVIEW_PATTERN_FILE="$REPO_ROOT/security-scan-patterns.txt"
+LOCAL_PATTERN_FILE="$REPO_ROOT/security-scan-patterns.local"
+
+
+# ---------------------------------------------------------------------------
+# Global scan state
+# ---------------------------------------------------------------------------
+
+CRITICAL_HIT=0
+REVIEW_HIT=0
+
+PROJECT_ID_VALUE=""
+HUMAN_ACCOUNT_VALUE=""
+
+# Used to prevent the same match from being printed twice when the working
+# tree and Git index contain the same content.
+declare -A REPORTED_MATCHES=()
+
+
+# ---------------------------------------------------------------------------
+# Basic output helpers
+# ---------------------------------------------------------------------------
+
+print_header() {
+    printf '\n%b\n' "${CYAN}--- $1 ---${RESET}"
+}
+
+
+print_error() {
+    printf '%b\n' "${RED}[ERROR] $1${RESET}"
+}
+
+
+print_warning() {
+    printf '%b\n' "${YELLOW}[WARNING] $1${RESET}"
+}
+
+
+print_pass() {
+    printf '%b\n' "${GREEN}[PASS] $1${RESET}"
+}
+
+
+# ---------------------------------------------------------------------------
+# Read from the user's terminal
+#
+# This is important for Git hooks.
+#
+# Git's pre-push hook uses stdin for Git protocol information. If we simply
+# used:
+#
+#     read reply
+#
+# the scanner could accidentally consume Git's stdin instead of asking the
+# user a question.
+#
+# Reading from /dev/tty makes the prompt communicate directly with the
+# interactive terminal.
+# ---------------------------------------------------------------------------
+
+read_from_terminal() {
+    local prompt="$1"
+    local reply=""
+
+    if [[ ! -r /dev/tty || ! -w /dev/tty ]]; then
+        return 1
+    fi
+
+    printf '%s' "$prompt" > /dev/tty
+
+    if ! IFS= read -r reply < /dev/tty; then
+        return 1
+    fi
+
+    printf '%s' "$reply"
+}
+
+
+# ---------------------------------------------------------------------------
+# Protect sensitive dynamic identifiers in displayed file paths
+#
+# Normally the project ID or account email would appear inside file contents,
+# not filenames. However, we do not want to accidentally expose either value
+# if somebody creates a filename containing one of them.
+#
+# Example:
+#
+#   REAL_PROJECT_ID-notes.txt
+#
+# is displayed as:
+#
+#   <PROJECT_ID>-notes.txt
+# ---------------------------------------------------------------------------
+
+safe_display_path() {
+    local path="$1"
+
+    if [[ -n "$PROJECT_ID_VALUE" ]]; then
+        path="${path//"$PROJECT_ID_VALUE"/<PROJECT_ID>}"
+    fi
+
+    if [[ -n "$HUMAN_ACCOUNT_VALUE" ]]; then
+        path="${path//"$HUMAN_ACCOUNT_VALUE"/<HUMAN_ACCOUNT>}"
+    fi
+
+    # %q shell-escapes unusual filenames instead of allowing control
+    # characters in a filename to affect the terminal.
+    printf '%q' "$path"
+}
+
+
+# ---------------------------------------------------------------------------
+# Files containing scanner patterns must not scan themselves.
+#
+# For example, security-scan-critical-patterns.txt intentionally contains:
+#
+#     ghp_
+#
+# If we scanned that pattern file itself, it would always produce a finding.
+# ---------------------------------------------------------------------------
+
+is_scanner_pattern_file() {
+    local file="$1"
+
+    case "$file" in
+        security-scan-critical-patterns.txt)
+            return 0
+            ;;
+        security-scan-patterns.txt)
+            return 0
+            ;;
+        security-scan-patterns.local)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+
+# ---------------------------------------------------------------------------
+# Report a match
+#
+# Arguments:
+#
+#   $1 = severity: CRITICAL or REVIEW
+#   $2 = filename
+#   $3 = line number
+#   $4 = safe label to display
+#
+# IMPORTANT:
+#
+# The matched line itself is intentionally NOT displayed.
+#
+# This prevents a scanner that discovers a real credential from immediately
+# echoing that credential back to the terminal.
+# ---------------------------------------------------------------------------
+
+report_match() {
+    local severity="$1"
+    local file="$2"
+    local line_number="$3"
+    local label="$4"
+
+    local display_file
+    local key
+
+    display_file="$(safe_display_path "$file")"
+
+    key="${severity}|${file}|${line_number}|${label}"
+
+    if [[ -n "${REPORTED_MATCHES[$key]+x}" ]]; then
+        return 0
+    fi
+
+    REPORTED_MATCHES["$key"]=1
+
+    if [[ "$severity" == "CRITICAL" ]]; then
+        CRITICAL_HIT=1
+
+        printf '%b\n' \
+            "${RED}[CRITICAL] ${display_file}:${line_number} matched ${label}${RESET}"
+    else
+        REVIEW_HIT=1
+
+        printf '%b\n' \
+            "${YELLOW}[REVIEW] ${display_file}:${line_number} matched ${label}${RESET}"
+    fi
+}
+
+
+# ---------------------------------------------------------------------------
+# Obtain a value from the active gcloud configuration
+#
+# The value is returned through stdout to the caller.
+#
+# gcloud diagnostic/warning output goes to /dev/null so it cannot accidentally
+# expose anything through this scanner.
+# ---------------------------------------------------------------------------
+
+get_gcloud_identifier() {
+    local property="$1"
+    local value=""
+
+    value="$(gcloud config get "$property" 2>/dev/null || true)"
+
+    case "$value" in
+        ""|"(unset)")
+            return 1
+            ;;
+    esac
+
+    printf '%s' "$value"
+}
+
+
+# ---------------------------------------------------------------------------
+# Load dynamic Google Cloud identifiers
+#
+# These values remain in shell variables only.
+#
+# They are NEVER intentionally printed.
+#
+# If gcloud or its active project/account configuration is unavailable, we
+# raise a REVIEW condition instead of silently claiming that the dynamic
+# checks passed.
+# ---------------------------------------------------------------------------
+
+load_dynamic_google_identifiers() {
+    print_header "Loading dynamic Google Cloud identifiers"
+
+    if ! command -v gcloud >/dev/null 2>&1; then
+        print_warning \
+            "gcloud is not available. PROJECT_ID and HUMAN_ACCOUNT checks cannot run."
+
+        REVIEW_HIT=1
+        return 0
+    fi
+
+    if PROJECT_ID_VALUE="$(get_gcloud_identifier project)"; then
+        printf '%b\n' \
+            "${GREEN}[READY] PROJECT_ID loaded for private comparison.${RESET}"
+    else
+        PROJECT_ID_VALUE=""
+
+        print_warning \
+            "PROJECT_ID could not be read from the active gcloud configuration."
+
+        REVIEW_HIT=1
+    fi
+
+    if HUMAN_ACCOUNT_VALUE="$(get_gcloud_identifier account)"; then
+        printf '%b\n' \
+            "${GREEN}[READY] HUMAN_ACCOUNT loaded for private comparison.${RESET}"
+    else
+        HUMAN_ACCOUNT_VALUE=""
+
+        print_warning \
+            "HUMAN_ACCOUNT could not be read from the active gcloud configuration."
+
+        REVIEW_HIT=1
+    fi
+}
+
+
+# ---------------------------------------------------------------------------
+# Scan a literal dynamic value in working-tree Git-visible files
+#
+# grep options:
+#
+#   -F = fixed string; do not interpret the identifier as regex
+#   -n = include line number internally
+#   -I = ignore binary files
+#
+# grep's actual matching line is passed through cut and never printed.
+# Only its line number reaches report_match.
+# ---------------------------------------------------------------------------
+
+scan_literal_working_tree() {
+    local label="$1"
+    local value="$2"
+
+    local file
+    local line_number
+    local absolute_file
+
+    while IFS= read -r -d '' file; do
+
+        if is_scanner_pattern_file "$file"; then
+            continue
+        fi
+
+        absolute_file="$REPO_ROOT/$file"
+
+        [[ -f "$absolute_file" ]] || continue
+
+        while IFS= read -r line_number; do
+            [[ -n "$line_number" ]] || continue
+
+            report_match \
+                "CRITICAL" \
+                "$file" \
+                "$line_number" \
+                "$label"
+
+        done < <(
+            LC_ALL=C grep -nFI -- "$value" "$absolute_file" 2>/dev/null \
+                | cut -d: -f1 \
+                || true
+        )
+
+    done < <(
+        git -C "$REPO_ROOT" \
+            ls-files --cached --others --exclude-standard -z
+    )
+}
+
+
+# ---------------------------------------------------------------------------
+# Scan a literal dynamic value in Git's index
+#
+# git show ":path" reads the version currently stored in the Git index.
+#
+# This protects against:
+#
+#   1. Sensitive value is accidentally staged.
+#   2. User removes it from the working file.
+#   3. User forgets to run git add again.
+#
+# The working-tree scan would see the safe version, but this index scan still
+# sees and blocks the sensitive staged version.
+# ---------------------------------------------------------------------------
+
+scan_literal_index() {
+    local label="$1"
+    local value="$2"
+
+    local file
+    local line_number
+
+    while IFS= read -r -d '' file; do
+
+        if is_scanner_pattern_file "$file"; then
+            continue
+        fi
+
+        while IFS= read -r line_number; do
+            [[ -n "$line_number" ]] || continue
+
+            report_match \
+                "CRITICAL" \
+                "$file" \
+                "$line_number" \
+                "$label"
+
+        done < <(
+            git -C "$REPO_ROOT" show ":$file" 2>/dev/null \
+                | LC_ALL=C grep -nFI -- "$value" 2>/dev/null \
+                | cut -d: -f1 \
+                || true
+        )
+
+    done < <(
+        git -C "$REPO_ROOT" ls-files --cached -z
+    )
+}
+
+
+# ---------------------------------------------------------------------------
+# Run dynamic Google identifier checks
+# ---------------------------------------------------------------------------
+
+scan_dynamic_google_identifiers() {
+    local before_critical="$CRITICAL_HIT"
+
+    print_header "Dynamic Google Cloud identifier checks"
+
+    if [[ -n "$PROJECT_ID_VALUE" ]]; then
+        printf '%b\n' \
+            "${CYAN}Checking PROJECT_ID without displaying its value...${RESET}"
+
+        scan_literal_working_tree \
+            "PROJECT_ID" \
+            "$PROJECT_ID_VALUE"
+
+        scan_literal_index \
+            "PROJECT_ID" \
+            "$PROJECT_ID_VALUE"
+    fi
+
+    if [[ -n "$HUMAN_ACCOUNT_VALUE" ]]; then
+        printf '%b\n' \
+            "${CYAN}Checking HUMAN_ACCOUNT without displaying its value...${RESET}"
+
+        scan_literal_working_tree \
+            "HUMAN_ACCOUNT" \
+            "$HUMAN_ACCOUNT_VALUE"
+
+        scan_literal_index \
+            "HUMAN_ACCOUNT" \
+            "$HUMAN_ACCOUNT_VALUE"
+    fi
+
+    if [[ "$before_critical" -eq "$CRITICAL_HIT" ]]; then
+        print_pass \
+            "No PROJECT_ID or HUMAN_ACCOUNT matches found."
+    fi
+}
+
+
+# ---------------------------------------------------------------------------
+# Scan one regex pattern against Git-visible working-tree files
+#
+# Arguments:
+#
+#   $1 = regex
+#   $2 = severity
+#   $3 = safe label displayed to the user
+# ---------------------------------------------------------------------------
+
+scan_regex_working_tree() {
+    local pattern="$1"
+    local severity="$2"
+    local label="$3"
+
+    local file
+    local line_number
+    local absolute_file
+
+    while IFS= read -r -d '' file; do
+
+        if is_scanner_pattern_file "$file"; then
+            continue
+        fi
+
+        absolute_file="$REPO_ROOT/$file"
+
+        [[ -f "$absolute_file" ]] || continue
+
+        while IFS= read -r line_number; do
+            [[ -n "$line_number" ]] || continue
+
+            report_match \
+                "$severity" \
+                "$file" \
+                "$line_number" \
+                "$label"
+
+        done < <(
+            LC_ALL=C grep -nEI -- "$pattern" "$absolute_file" 2>/dev/null \
+                | cut -d: -f1 \
+                || true
+        )
+
+    done < <(
+        git -C "$REPO_ROOT" \
+            ls-files --cached --others --exclude-standard -z
+    )
+}
+
+
+# ---------------------------------------------------------------------------
+# Scan one regex pattern against the Git index
+# ---------------------------------------------------------------------------
+
+scan_regex_index() {
+    local pattern="$1"
+    local severity="$2"
+    local label="$3"
+
+    local file
+    local line_number
+
+    while IFS= read -r -d '' file; do
+
+        if is_scanner_pattern_file "$file"; then
+            continue
+        fi
+
+        while IFS= read -r line_number; do
+            [[ -n "$line_number" ]] || continue
+
+            report_match \
+                "$severity" \
+                "$file" \
+                "$line_number" \
+                "$label"
+
+        done < <(
+            git -C "$REPO_ROOT" show ":$file" 2>/dev/null \
+                | LC_ALL=C grep -nEI -- "$pattern" 2>/dev/null \
+                | cut -d: -f1 \
+                || true
+        )
+
+    done < <(
+        git -C "$REPO_ROOT" ls-files --cached -z
+    )
+}
+
+
+# ---------------------------------------------------------------------------
+# Validate a regex before using it
+#
+# grep returns:
+#
+#   0 = matched
+#   1 = valid regex but no match
+#   2 = regex or execution error
+# ---------------------------------------------------------------------------
+
+validate_regex() {
+    local pattern="$1"
+    local rc
+
+    printf '' | LC_ALL=C grep -Eq -- "$pattern" 2>/dev/null
+    rc=$?
+
+    if [[ "$rc" -eq 2 ]]; then
+        return 1
+    fi
+
+    return 0
+}
+
+
+# ---------------------------------------------------------------------------
+# Scan a pattern file
+#
+# Arguments:
+#
+#   $1 = pattern file
+#   $2 = severity
+#   $3 = whether displaying the actual pattern is safe:
+#
+#        yes = public pattern can be displayed
+#        no  = hide pattern and report LOCAL_PATTERN instead
+# ---------------------------------------------------------------------------
+
+scan_pattern_file() {
+    local pattern_file="$1"
+    local severity="$2"
+    local display_pattern="$3"
+
+    local pattern
+    local label
+    local before_critical="$CRITICAL_HIT"
+    local before_review="$REVIEW_HIT"
+
+    while IFS= read -r pattern || [[ -n "$pattern" ]]; do
+
+        # Remove a possible Windows CR character.
+        pattern="${pattern%$'\r'}"
+
+        # Ignore empty lines and comments.
+        [[ -z "$pattern" ]] && continue
+        [[ "$pattern" =~ ^[[:space:]]*# ]] && continue
+
+        if ! validate_regex "$pattern"; then
+            print_error \
+                "Invalid regular expression found in $(basename "$pattern_file")."
+
+            return 1
+        fi
+
+        if [[ "$display_pattern" == "yes" ]]; then
+            label="pattern: ${pattern}"
+        else
+            # The local pattern file can contain usernames, hostnames, home
+            # paths, or other machine-specific information. Do not echo those
+            # patterns back to the terminal.
+            label="LOCAL_PATTERN"
+        fi
+
+        scan_regex_working_tree \
+            "$pattern" \
+            "$severity" \
+            "$label"
+
+        scan_regex_index \
+            "$pattern" \
+            "$severity" \
+            "$label"
+
+    done < "$pattern_file"
+
+    if [[ "$severity" == "CRITICAL" ]]; then
+        if [[ "$before_critical" -eq "$CRITICAL_HIT" ]]; then
+            print_pass \
+                "No matches from $(basename "$pattern_file")."
+        fi
+    else
+        if [[ "$before_review" -eq "$REVIEW_HIT" ]]; then
+            print_pass \
+                "No matches from $(basename "$pattern_file")."
+        fi
+    fi
+
+    return 0
+}
+
+
+# ---------------------------------------------------------------------------
+# Check required scanner files
+# ---------------------------------------------------------------------------
+
+if [[ ! -f "$CRITICAL_PATTERN_FILE" ]]; then
+    print_error \
+        "Missing required pattern file: security-scan-critical-patterns.txt"
+
+    exit 1
+fi
+
+if [[ ! -f "$REVIEW_PATTERN_FILE" ]]; then
+    print_error \
+        "Missing required pattern file: security-scan-patterns.txt"
+
+    exit 1
+fi
+
+
+# ---------------------------------------------------------------------------
+# Start scan
+# ---------------------------------------------------------------------------
+
+printf '%b\n' \
+    "${CYAN}Security scan for automated-purple-team-lab${RESET}"
+
+printf '%s\n' \
+    "Repository: $(basename "$REPO_ROOT")"
+
+printf '%s\n' \
+    "Scanning Git-visible working files and the Git index."
+
+
+# ---------------------------------------------------------------------------
+# Dynamic Google Cloud checks
+# ---------------------------------------------------------------------------
+
+load_dynamic_google_identifiers
+scan_dynamic_google_identifiers
+
+
+# ---------------------------------------------------------------------------
+# Critical public patterns
+# ---------------------------------------------------------------------------
+
+print_header "Critical pattern checks"
+
+if ! scan_pattern_file \
+    "$CRITICAL_PATTERN_FILE" \
+    "CRITICAL" \
+    "yes"
+then
+    exit 1
+fi
+
+
+# ---------------------------------------------------------------------------
+# Reviewable public patterns
+# ---------------------------------------------------------------------------
+
+print_header "Reviewable pattern checks"
+
+if ! scan_pattern_file \
+    "$REVIEW_PATTERN_FILE" \
+    "REVIEW" \
+    "yes"
+then
+    exit 1
+fi
+
+
+# ---------------------------------------------------------------------------
+# Optional local patterns
+#
+# These are review findings rather than automatic critical findings because
+# the local file may intentionally contain identifiers that are acceptable in
+# some contexts.
+#
+# The actual local patterns are never displayed.
+# ---------------------------------------------------------------------------
+
+print_header "Local pattern checks"
+
+if [[ -f "$LOCAL_PATTERN_FILE" ]]; then
+
+    if ! scan_pattern_file \
+        "$LOCAL_PATTERN_FILE" \
+        "REVIEW" \
+        "no"
+    then
+        exit 1
+    fi
+
+else
+    printf '%b\n' \
+        "${CYAN}[INFO] No security-scan-patterns.local file present; local checks skipped.${RESET}"
+fi
+
+
+# ---------------------------------------------------------------------------
+# Critical finding approval
+# ---------------------------------------------------------------------------
+
+if [[ "$CRITICAL_HIT" -ne 0 ]]; then
+
+    printf '\n%b\n' \
+        "${RED}CRITICAL security finding(s) were detected.${RESET}"
+
+    printf '%s\n' \
+        "Review every critical finding before continuing."
+
+    printf '%s\n' \
+        "The scanner will fail unless you explicitly approve the findings."
+
+    reply="$(
+        read_from_terminal \
+            "Approve ALL critical findings and continue? [y/N] "
+    )" || {
+        print_error \
+            "No interactive terminal is available. Failing closed."
+
+        exit 1
+    }
+
+    case "$reply" in
+        y|Y)
+            printf '%b\n' \
+                "${YELLOW}Critical findings manually approved.${RESET}"
+            ;;
+        *)
+            printf '%b\n' \
+                "${RED}Security scan rejected.${RESET}"
+
+            exit 1
+            ;;
+    esac
+fi
+
+
+# ---------------------------------------------------------------------------
+# Reviewable finding approval
+# ---------------------------------------------------------------------------
+
+if [[ "$REVIEW_HIT" -ne 0 ]]; then
+
+    printf '\n%b\n' \
+        "${YELLOW}Reviewable security finding(s) or incomplete checks were detected.${RESET}"
+
+    printf '%s\n' \
+        "Review these items before continuing."
+
+    reply="$(
+        read_from_terminal \
+            "Approve ALL reviewable findings and continue? [y/N] "
+    )" || {
+        print_error \
+            "No interactive terminal is available. Failing closed."
+
+        exit 1
+    }
+
+    case "$reply" in
+        y|Y)
+            printf '%b\n' \
+                "${YELLOW}Reviewable findings manually approved.${RESET}"
+            ;;
+        *)
+            printf '%b\n' \
+                "${RED}Security scan rejected.${RESET}"
+
+            exit 1
+            ;;
+    esac
+fi
+
+
+# ---------------------------------------------------------------------------
+# Final result
+# ---------------------------------------------------------------------------
+
+printf '\n%b\n' \
+    "${GREEN}Security scan passed.${RESET}"
+
+exit 0

@@ -32,6 +32,8 @@ The target subnet is:
 The control and target networks are intentionally treated as separate trust
 zones even though they are part of the same VPC.
 
+![Network trust boundaries](./svg/network-trust-boundaries.svg)
+
 ## CALDERA communication
 
 The initial CALDERA communication model allows a vm in target workloads to initiate
@@ -145,3 +147,4 @@ The current firewall policy also does not allow:
 - administrative management paths
 
 Those will be allowed when the resource or function is necessary.
+

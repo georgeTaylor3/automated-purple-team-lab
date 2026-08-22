@@ -9,6 +9,8 @@ services.
 
 The public demo account should have very limited access.
 
+![Identity and Access Relationships](./svg/iam-trust-relationships.svg)
+
 ## My admin account
 
 My admin accounts will use MFA.
@@ -140,4 +142,3 @@ crashed after the image was already created. packerImageManager
 is defined in terraform/iam.tf.
 
 To let Terraform manage that role, I also had to grant terraform-deployer
-roles/iam.roleAdmin, since it had no IAM permissions before this.

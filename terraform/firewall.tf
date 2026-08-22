@@ -324,6 +324,28 @@ resource "google_compute_firewall" "allow_iap_to_packer_winrm" {
   }
 }
 
+resource "google_compute_firewall" "allow_iap_to_packer_ssh" {
+  name        = "allow-iap-to-packer-ssh"
+  description = "Allow IAP TCP forwarding to temporary Packer Linux builders over SSH."
+
+  network   = google_compute_network.lab.name
+  direction = "INGRESS"
+  priority  = 900
+
+  source_ranges = [
+    "35.235.240.0/20"
+  ]
+
+  target_service_accounts = [
+    local.packer_builder_service_account
+  ]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+}
+
 resource "google_compute_firewall" "allow_packer_windows_kms_egress" {
   name        = "allow-packer-windows-kms"
   description = "Allow temporary Windows image builders to reach Google Windows KMS for activation."
