@@ -1,5 +1,5 @@
 locals {
-  caldera_control_service_account = "caldera-control-sa@${var.project_id}.iam.gserviceaccount.com"
+  control_node_service_account = "control-node-sa@${var.project_id}.iam.gserviceaccount.com"
   web_target_service_account      = "web-target-sa@${var.project_id}.iam.gserviceaccount.com"
   workstation_service_account     = "workstation-target-sa@${var.project_id}.iam.gserviceaccount.com"
   packer_builder_service_account  = "packer-builder-sa@${var.project_id}.iam.gserviceaccount.com"
@@ -19,7 +19,7 @@ resource "google_compute_firewall" "allow_target_to_caldera_c2_ingress" {
   ]
 
   target_service_accounts = [
-    local.caldera_control_service_account
+    local.control_node_service_account
   ]
 
   allow {
@@ -177,7 +177,7 @@ resource "google_compute_firewall" "deny_caldera_to_target" {
   ]
 
   target_service_accounts = [
-    local.caldera_control_service_account
+    local.control_node_service_account
   ]
 
   deny {
@@ -202,7 +202,7 @@ resource "google_compute_firewall" "allow_caldera_https_egress" {
   ]
 
   target_service_accounts = [
-    local.caldera_control_service_account
+    local.control_node_service_account
   ]
 
   allow {
@@ -228,7 +228,7 @@ resource "google_compute_firewall" "deny_caldera_other_egress" {
   ]
 
   target_service_accounts = [
-    local.caldera_control_service_account
+    local.control_node_service_account
   ]
 
   deny {
@@ -453,6 +453,58 @@ resource "google_compute_firewall" "deny_packer_other_egress" {
 
   deny {
     protocol = "all"
+  }
+
+  log_config {
+    metadata = "EXCLUDE_ALL_METADATA"
+  }
+}
+
+resource "google_compute_firewall" "allow_iap_to_control_node_ssh" {
+  name        = "allow-iap-to-control-node-ssh"
+  description = "Allow IAP TCP forwarding to the control node over SSH, for admin access."
+
+  network   = google_compute_network.lab.name
+  direction = "INGRESS"
+  priority  = 900
+
+  source_ranges = [
+    "35.235.240.0/20"
+  ]
+
+  target_service_accounts = [
+    local.control_node_service_account
+  ]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  log_config {
+    metadata = "EXCLUDE_ALL_METADATA"
+  }
+}
+
+resource "google_compute_firewall" "allow_iap_to_control_node_ui" {
+  name        = "allow-iap-to-control-node-ui"
+  description = "Allow IAP TCP forwarding to the control-plane web UIs, for admin access."
+
+  network   = google_compute_network.lab.name
+  direction = "INGRESS"
+  priority  = 900
+
+  source_ranges = [
+    "35.235.240.0/20"
+  ]
+
+  target_service_accounts = [
+    local.control_node_service_account
+  ]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8888", "5601", "9200"]
   }
 
   log_config {

@@ -31,3 +31,9 @@ variable "workstation_subnet_cidr" {
   type        = string
   default     = "10.60.30.0/24"
 }
+
+variable "zone" {
+  description = "Default Google Cloud zone for lab compute resources."
+  type        = string
+  default     = "us-central1-a"
+}
