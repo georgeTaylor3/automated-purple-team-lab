@@ -1,0 +1,77 @@
+# docker-compose.yml
+#
+# Control node services. CALDERA is first; Elastic and the future web
+# controller join this file as they're built.
+#
+# CALDERA's data (operation history, custom adversary profiles, uploaded
+# payloads, conf/ including auto-generated keys) is persisted to a named
+# volume during development, so rebuilding the image or restarting the
+# container doesn't lose work in progress.
+#
+# This is a deliberate development-time choice, not the final demo
+# posture: the real public-facing environment should give each visitor
+# session a fresh CALDERA state, not accumulate history across visitors.
+# That's a separate decision for when the demo controller exists --
+# likely mounting no volume at all, or wiping it on session start/end.
+#
+# Elasticsearch/Kibana here use the same "development-simple, not
+# production-secure" posture as CALDERA's --insecure flag: security is
+# enabled (a real password is required), but TLS and the full
+# cert/enrollment-token flow are skipped, since neither container is
+# reachable outside Docker's internal network on this laptop. The full
+# setup-container + TLS pattern is Elastic's own documented production
+# approach and worth adopting before this goes anywhere near the real
+# demo environment.
+#
+# STACK_VERSION, ELASTIC_PASSWORD, and KIBANA_SYSTEM_PASSWORD are read
+# from a local .env file (gitignored), not committed here.
+
+services:
+  caldera:
+    build:
+      context: ./docker/caldera
+    container_name: caldera
+    ports:
+      - "8888:8888"
+      - "7010:7010"
+      - "7011:7011"
+      - "7012:7012"
+      - "2222:2222"
+      - "8022:8022"
+    volumes:
+      - caldera-data:/opt/caldera/data
+      - caldera-conf:/opt/caldera/conf
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
+    container_name: kibana
+    depends_on:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_SYSTEM_PASSWORD}
+    ports:
+      - "5601:5601"
+    restart: unless-stopped
+
+volumes:
+  caldera-data:
+  caldera-conf:
+  elasticsearch-data:
