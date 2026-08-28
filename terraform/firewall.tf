@@ -458,6 +458,32 @@ resource "google_compute_firewall" "allow_control_node_http_egress" {
   }
 }
 
+resource "google_compute_firewall" "allow_control_node_https_egress" {
+  name        = "allow-control-node-https-egress"
+  description = "Allow control-node outbound HTTPS for Docker image builds run on the instance itself (NodeSource, Docker's own repo, go.dev, GitHub, Elastic's artifact server)."
+
+  network   = google_compute_network.lab.name
+  direction = "EGRESS"
+  priority  = 2500
+
+  destination_ranges = [
+    "0.0.0.0/0"
+  ]
+
+  target_service_accounts = [
+    local.control_node_service_account
+  ]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["443"]
+  }
+
+  log_config {
+    metadata = "EXCLUDE_ALL_METADATA"
+  }
+}
+
 resource "google_compute_firewall" "deny_packer_other_egress" {
   name        = "deny-packer-other-egress"
   description = "Deny temporary Packer builder egress that is not explicitly allowed by a higher-priority rule."
@@ -531,6 +557,31 @@ resource "google_compute_firewall" "allow_iap_to_control_node_ui" {
   allow {
     protocol = "tcp"
     ports    = ["8888", "5601", "9200"]
+  }
+
+  log_config {
+    metadata = "EXCLUDE_ALL_METADATA"
+  }
+}
+
+resource "google_compute_firewall" "deny_control_node_other_egress" {
+  name        = "deny-control-node-other-egress"
+  description = "Deny control-node egress that is not explicitly allowed by a higher-priority rule."
+
+  network   = google_compute_network.lab.name
+  direction = "EGRESS"
+  priority  = 3000
+
+  destination_ranges = [
+    "0.0.0.0/0"
+  ]
+
+  target_service_accounts = [
+    local.control_node_service_account
+  ]
+
+  deny {
+    protocol = "all"
   }
 
   log_config {

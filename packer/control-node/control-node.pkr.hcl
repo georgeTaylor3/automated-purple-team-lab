@@ -107,6 +107,30 @@ build {
     ]
   }
 
+  # Swap file. Elasticsearch + Kibana + CALDERA running together on a
+  # modest instance can exhaust RAM under real load -- confirmed the
+  # hard way on 2026-08-28, where a fully-idle e2-medium (4GB) was
+  # already sitting at 3.8Gi/3.8Gi used with 105Mi free, no swap,
+  # causing even basic SSH/sudo commands to hang or fail with DNS
+  # resolution errors under the pressure. This costs 2GB of disk and
+  # does nothing when memory isn't under pressure -- it only matters
+  # the one time it's actually needed, turning a hard OOM-kill crash
+  # into graceful degradation instead. Baked in regardless of instance
+  # size, since Elasticsearch in particular tends to grow to fill
+  # whatever's available if not explicitly capped.
+  provisioner "shell" {
+    inline = [
+      "set -e",
+      "sudo fallocate -l 2G /swapfile",
+      "sudo chmod 600 /swapfile",
+      "sudo mkswap /swapfile",
+      "sudo swapon /swapfile",
+      "echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab",
+      "free -h",
+      "echo 'Swap file created and enabled at boot.'"
+    ]
+  }
+
   provisioner "shell" {
 
     inline = [
@@ -138,6 +162,22 @@ build {
       "KIBANA_SYSTEM_PASSWORD=$KIBANA_SYSTEM_PASSWORD",
       "ENVFILE",
       "chmod 600 \"$REPO_DIR/.env\"",
+      "",
+      "docker compose up -d elasticsearch",
+      "",
+      "echo \"Waiting for Elasticsearch to accept requests...\"",
+      "for i in $(seq 1 30); do",
+      "  if curl -s -o /dev/null -u \"elastic:$ELASTIC_PASSWORD\" http://localhost:9200; then",
+      "    break",
+      "  fi",
+      "  sleep 5",
+      "done",
+      "",
+      "echo \"Syncing kibana_system password (needed every time Elasticsearch's data volume starts fresh -- setting ELASTICSEARCH_PASSWORD in Kibana's environment does not itself change the password Elasticsearch expects)...\"",
+      "curl -s -u \"elastic:$ELASTIC_PASSWORD\" -X POST \"http://localhost:9200/_security/user/kibana_system/_password\" \\",
+      "  -H \"Content-Type: application/json\" \\",
+      "  -d \"{\\\"password\\\":\\\"$KIBANA_SYSTEM_PASSWORD\\\"}\"",
+      "echo",
       "",
       "CURRENT_COMMIT=$(git rev-parse HEAD)",
       "LAST_BUILT_COMMIT=\"\"",

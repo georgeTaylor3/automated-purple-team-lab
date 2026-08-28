@@ -5,7 +5,7 @@ resource "google_compute_instance" "control_node" {
   name         = "control-node"
   project      = var.project_id
   zone         = var.zone
-  machine_type = "e2-medium"
+  machine_type = "e2-standard-2"
 
   boot_disk {
     initialize_params {
