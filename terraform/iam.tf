@@ -56,3 +56,15 @@ resource "google_project_iam_member" "terraform_deployer_compute_instance_manage
   role    = google_project_iam_custom_role.terraform_compute_instance_manager.id
   member  = "serviceAccount:terraform-deployer@${var.project_id}.iam.gserviceaccount.com"
 }
+
+resource "google_secret_manager_secret_iam_member" "control_node_elastic_password" {
+  secret_id = "elastic-password"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${local.control_node_service_account}"
+}
+
+resource "google_secret_manager_secret_iam_member" "control_node_kibana_system_password" {
+  secret_id = "kibana-system-password"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${local.control_node_service_account}"
+}

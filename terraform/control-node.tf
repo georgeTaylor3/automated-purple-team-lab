@@ -9,7 +9,7 @@ resource "google_compute_instance" "control_node" {
 
   boot_disk {
     initialize_params {
-      image = "projects/${var.project_id}/global/images/family/purple-caldera-control"
+      image = "projects/${var.project_id}/global/images/family/purple-control-node"
       size  = 30
       type  = "pd-balanced"
     }
