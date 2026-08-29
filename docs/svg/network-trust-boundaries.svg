@@ -1,6 +1,6 @@
 <svg width="680" height="460" viewBox="0 0 680 460" xmlns="http://www.w3.org/2000/svg" role="img">
-<title>Network trust boundaries by service account identity</title>
-<desc>Firewall rules grant access based on service account identity rather than IP range. Workstation target can reach the web target on port 443. Target service accounts can reach the CALDERA control node on port 8888. CALDERA cannot initiate connections to targets. Packer builder identities are isolated to build-time only and have no path to any target.</desc>
+<title>Network trust boundaries by service account identity, updated</title>
+<desc>Firewall rules grant access based on service account identity rather than IP range. Workstation target can reach the web target on port 443. Target service accounts can reach the control-node's CALDERA C2 on port 8888. The control node cannot initiate connections to targets. Packer builder identities are isolated to build-time only and have no path to any target.</desc>
 <defs>
   <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
     <path d="M2 1L8 5L2 9" fill="none" stroke="#5F5E5A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -20,8 +20,8 @@
 
 <g>
   <rect x="260" y="80" width="180" height="56" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
-  <text x="350" y="100" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="500" fill="#712B13">caldera-control-sa</text>
-  <text x="350" y="118" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#993C1D">C2 on port 8888</text>
+  <text x="350" y="100" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="500" fill="#712B13">control-node-sa</text>
+  <text x="350" y="118" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#993C1D">CALDERA C2 on port 8888</text>
 </g>
 
 <g>

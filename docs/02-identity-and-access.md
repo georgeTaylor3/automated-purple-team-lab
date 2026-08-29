@@ -142,3 +142,61 @@ crashed after the image was already created. packerImageManager
 is defined in terraform/iam.tf.
 
 To let Terraform manage that role, I also had to grant terraform-deployer
+roles/iam.roleAdmin, since it had no IAM permissions at all before this.
+
+packer-deployer also holds packerImageBuilder, a second custom role
+covering the actual build lifecycle: creating/deleting the temporary
+builder VM and its disk, reading serial console output, and setting the
+VM's metadata, labels, and service account. packerImageManager and
+packerImageBuilder are deliberately separate roles: one manages the
+resulting image artifact, the other manages the temporary infrastructure
+used to build it.
+
+## control-node-sa
+
+control-node-sa is the runtime identity for the persistent control-plane
+workload, renamed from caldera-control-sa once that workload grew to host
+CALDERA, Elasticsearch, Kibana, and Fleet Server together as containers,
+not just CALDERA alone. It has no project-level IAM roles of its own except
+what's listed below -- its network access comes entirely from firewall
+rules matching its identity, same as every other workload service account
+in this lab.
+
+control-node-sa is granted secretmanager.secretAccessor, scoped to two
+specific secrets (elastic-password, kibana-system-password), not project-
+wide secret access. This lets the self-deploying control-node instance
+fetch real credentials at boot without those credentials ever being
+committed to the (public) repo it clones from.
+
+## terraform-deployer: later grants
+
+As Terraform started managing more of the project over these sessions, it
+needed permissions it didn't start with. Recording these here since each
+one was a real gap discovered by an actual failed apply, not something
+planned in advance:
+
+- terraformComputeInstanceManager (custom role): compute.instances.create/
+  delete/get/list/setLabels/setMetadata/setServiceAccount, plus the
+  supporting disk and read permissions needed to actually create a VM.
+  Terraform had never created a compute instance before control-node.tf --
+  everything before that was network/firewall/IAM.
+- roles/resourcemanager.projectIamAdmin: discovered when Terraform tried to
+  bind IAM roles for the first time (the Secret Manager access grants
+  below). roles/iam.roleAdmin (already granted) lets Terraform create and
+  manage custom role definitions, but does not itself grant permission to
+  attach a role to someone -- that's a separate capability.
+- roles/secretmanager.admin: needed once Secret Manager entered the
+  picture at all, since Terraform had no Secret Manager permissions
+  whatsoever before.
+- roles/iam.serviceAccountUser, scoped to control-node-sa specifically
+  (not project-wide): required to attach control-node-sa to the
+  control-node instance at creation time. Distinct from
+  resourcemanager.projectIamAdmin -- that grants project-level role
+  binding, this grants permission to use one specific service account.
+
+All of these were granted unconditional (no IAM condition), same reasoning
+as the earlier IAP tunnel grants: a condition narrow enough to be
+meaningful would break the next time Terraform needed to manage a new
+role, instance, or secret, since none of these can be scoped down to a
+single known port or resource ahead of time the way the IAP tunnel grants
+could.

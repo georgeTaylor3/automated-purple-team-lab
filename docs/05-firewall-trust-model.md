@@ -5,8 +5,16 @@ allows communication only when required.
 
 The initial firewall policy is built around 2 workload identities:
 
-- `caldera-control-sa` for the CALDERA control workload
+- `control-node-sa` for the CALDERA/Elastic/Fleet control workload (renamed
+  from `caldera-control-sa` once this workload grew to host CALDERA,
+  Elasticsearch, Kibana, and Fleet Server together as containers, rather
+  than a single dedicated CALDERA VM)
 - `web-target-sa, workstation-target-sa` for target systems that emulate business workloads
+
+A third identity, `packer-builder-sa`, is also a firewall selector: it is
+the runtime identity attached to temporary Packer image builders (Windows
+workstation, Ubuntu workstation, CALDERA VM (archived), and control-node),
+not a permanent lab workload. See `08-packer-image-pipeline.md`.
 
 These service accounts are attached to planned Compute Engine workloads and are
 used as firewall selectors. They are not used by the workloads to log into one
@@ -45,12 +53,12 @@ The intended flow is:
             |
             | TCP 8888
             v
-    caldera-control-sa
+    control-node-sa
 
 The target initiates the connection.
 
 Traffic leaving the target is egress from the target workload. The same traffic
-arriving at CALDERA is ingress to the CALDERA workload.
+arriving at CALDERA is ingress to the control node workload.
 
 ## Firewall rules
 
@@ -58,7 +66,7 @@ arriving at CALDERA is ingress to the CALDERA workload.
 
 Direction: ingress
 
-This rule allows TCP port 8888 into workloads using `caldera-control-sa` when
+This rule allows TCP port 8888 into workloads using `control-node-sa` when
 the traffic originates from a workload using `web-target-sa, workstation-target-sa`.
 
 The service accounts identify the workloads participating in the connection.
@@ -94,14 +102,61 @@ modifying this exception. this will help organize the rules (good linear logic f
 
 Direction: egress
 
-This rule prevents workloads using `caldera-control-sa` from initiating
+This rule prevents workloads using `control-node-sa` from initiating
 arbitrary new connections toward the target subnet.
 
 Replies belonging to an already established target-initiated connection are
 handled by the stateful VPC firewall memory.
 
-If a future simulation requires CALDERA to initiate a specific connection to a
+If a future simulation requires the control node to initiate a specific connection to a
 target, the port/protocal will be addaded as a separate allow rule (again for good linear flow).
+
+### allow-iap-to-packer-winrm / allow-iap-to-packer-ssh
+
+Direction: ingress
+
+These allow Google's IAP TCP-forwarding range (`35.235.240.0/20`) to reach
+`packer-builder-sa` on WinRM (5986, for the Windows workstation build) or
+SSH (22, for the Ubuntu workstation, CALDERA VM, and control-node builds).
+Temporary Packer builder VMs have no external IP; this is the only path in
+to them.
+
+### allow-packer-http-egress / allow-packer-https-egress
+
+Direction: egress
+
+Temporary Packer builders need outbound HTTP (80) and HTTPS (443) to reach
+OS package mirrors and third-party build dependencies (Microsoft, Node,
+Go, Docker, Elastic, GitHub). Destination is `0.0.0.0/0` since these
+dependencies span multiple hosts not fixed in advance.
+
+### allow-iap-to-control-node-ssh / allow-iap-to-control-node-ui
+
+Direction: ingress
+
+Same IAP pattern as the Packer builder rules, but for admin access to the
+persistent control-node instance rather than a temporary builder: SSH (22)
+and the control-plane web UIs (8888 CALDERA, 5601 Kibana, 9200
+Elasticsearch).
+
+### allow-control-node-http-egress / allow-control-node-https-egress
+
+Direction: egress
+
+control-node-sa needed its own HTTP/HTTPS egress rules, separate from
+packer-builder-sa's -- the containerized CALDERA image now gets built on
+the real running instance itself (via the self-deploying
+`purple-lab-deploy.sh`), not only inside a temporary Packer builder. Same
+destinations as the Packer rules (apt mirrors on 80, NodeSource/Docker/Go/
+GitHub/Elastic on 443).
+
+### deny-control-node-other-egress
+
+Direction: egress
+
+Same purpose as `deny-target-to-control`: closes off everything
+control-node-sa is not explicitly allowed, once the actual allow rules
+above were confirmed sufficient for a real working deploy.
 
 ## Firewall logging
 
@@ -124,7 +179,7 @@ The custom role contains firewall create, read, list, update, and delete
 permissions.
 
 Terraform also has Service Account User permission directly on
-`caldera-control-sa` and `web-target-sa, workstation-target-sa`. These grants are scoped to the
+`control-node-sa` and `web-target-sa, workstation-target-sa`. These grants are scoped to the
 individual workload service accounts rather than the entire project.
 
 The workload service accounts themselves currently have no project-level IAM
@@ -132,19 +187,18 @@ roles.
 
 ## Current limitations
 
-There are no Compute Engine workloads using these service accounts yet.
-
-As a result, the service-account-based firewall rules currently have no VM
-instances to match.
+CALDERA (containerized) and control-node are running as real Compute Engine
+workloads as of the sessions covering `08-packer-image-pipeline.md` and the
+control-node self-deploy work. web-target-sa and workstation-target-sa
+still have no Compute Engine workloads attached.
 
 The current firewall policy also does not allow:
 
 - public SSH or RDP
 - public CALDERA access
-- general Internet connectivity
-- Cloud NAT
-- Elastic telemetry paths
-- administrative management paths
+- Fleet Server enrollment from outside control-node's own Docker network
+  (Fleet Server itself runs locally-tested only so far, not yet deployed
+  to control-node)
+- administrative management paths beyond IAP
 
 Those will be allowed when the resource or function is necessary.
-

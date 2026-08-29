@@ -5,7 +5,7 @@ addresses directly to Compute Engine workloads.
 
 ## Design goals
 
-The CALDERA control workload needs limited outbound Internet connectivity for
+The control workload needs limited outbound Internet connectivity for
 initial provisioning, software updates, installation, and required external
 dependencies. further on I will introduce firewall allow when a maintenance
 period is needed. Then eventually I will host all required update management
@@ -17,21 +17,31 @@ windows kms tcp port.
 I will never use public IP address bound to a VM. There is no need with modern
 routing/fw/proxy functions/devices.
 
-## CALDERA control egress
+## Control node egress
 
-Workloads using `caldera-control-sa` may initiate outbound TCP port 443
-connections.
+Workloads using `control-node-sa` (renamed from `caldera-control-sa` once
+this workload grew to host CALDERA, Elasticsearch, Kibana, and Fleet Server
+together as containers rather than a single dedicated service) may initiate
+outbound TCP port 443 connections.
 
 This permission exists for provisioning, updates, and required HTTPS
 dependencies. It is not required for the target-to-CALDERA C2 connection.
 
-Other CALDERA egress is denied unless a higher-priority firewall rule
-explicitly allows it.
+`control-node-sa` also has an outbound TCP port 80 allowance
+(`allow-control-node-http-egress`), added after the containerized CALDERA
+build started running on the real instance rather than only inside a
+temporary Packer builder. Google's own regional apt mirror
+(`*.gce.archive.ubuntu.com`) does not support HTTPS, so package installs
+inside the running control-node's own Docker builds need port 80 open, the
+same gap `packer-builder-sa` already had a rule for.
 
-Connections initiated by CALDERA toward the target subnet are denied by a
-higher-priority firewall rule.
+Other control-node egress is denied unless a higher-priority firewall rule
+explicitly allows it (`deny-control-node-other-egress`).
 
-The current HTTPS allowance is the initial operating model for the lab. It is
+Connections initiated by the control node toward the target subnet are
+denied by a higher-priority firewall rule.
+
+The current HTTP/HTTPS allowance is the initial operating model for the lab. It is
 not intended to be the final egress security posture.
 
 After the lab is functioning reliably, outbound Internet access should be
@@ -110,15 +120,18 @@ unsolicited inbound Internet connections.
 
 ## Current egress policy
 
-The current control workload policy is:
+The current control node policy is:
 
-    CALDERA -> target subnet
+    control-node -> target subnet
         DENY
 
-    CALDERA -> TCP 443
+    control-node -> TCP 443
         ALLOW
 
-    CALDERA -> other destinations and protocols
+    control-node -> TCP 80
+        ALLOW
+
+    control-node -> other destinations and protocols
         DENY
 
 The current target workload policy is:
@@ -136,7 +149,7 @@ The target subnet also has no Cloud NAT path.
 
 ## Future hardening
 
-The initial design intentionally permits the CALDERA workload outbound HTTPS so
+The initial design intentionally permits the control node workload outbound HTTP/HTTPS so
 the lab can be built/maintained without first creating an internal software
 distribution environment.
 
@@ -145,7 +158,7 @@ Once the lab is stable, this permission will be revisited.
 The intended progression is:
 
     Phase A
-        CALDERA may use outbound HTTPS.
+        control-node may use outbound HTTP/HTTPS.
 
     Phase B (later)
         General Internet access is reduced or limited to maintenance periods

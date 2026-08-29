@@ -28,6 +28,8 @@ custom role (instance create/delete, disk create/delete, serial port read,
 metadata/service-account assignment). The VM itself runs as
 `packer-builder-sa`, a separate, narrower identity from `packer-deployer`.
 
+![control-node container architecture](./svg/control-node-architecture.svg)
+
 ### 3. Connecting to the builder
 
 Since the VM has no external IP, Packer reaches it through an IAP tunnel:
