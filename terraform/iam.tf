@@ -68,3 +68,9 @@ resource "google_secret_manager_secret_iam_member" "control_node_kibana_system_p
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${local.control_node_service_account}"
 }
+
+resource "google_secret_manager_secret_iam_member" "control_node_kibana_encryption_key" {
+  secret_id = "kibana-encryption-key"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${local.control_node_service_account}"
+}
