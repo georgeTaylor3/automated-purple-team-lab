@@ -1,0 +1,100 @@
+{
+  "generated": "2026-08-29T19:08:58Z",
+  "project_id": "purple-lab-48271",
+  "service_accounts": {
+    "terraform-deployer@purple-lab-48271.iam.gserviceaccount.com": [
+      "projects/purple-lab-48271/roles/terraformComputeInstanceManager",
+      "projects/purple-lab-48271/roles/terraformFirewallManager",
+      "roles/browser",
+      "roles/compute.networkAdmin",
+      "roles/iam.roleAdmin",
+      "roles/resourcemanager.projectIamAdmin",
+      "roles/secretmanager.admin"
+    ],
+    "caldera-control-sa@purple-lab-48271.iam.gserviceaccount.com": [],
+    "307067328756-compute@developer.gserviceaccount.com": [
+      "roles/editor"
+    ],
+    "control-node-sa@purple-lab-48271.iam.gserviceaccount.com": [],
+    "packer-builder-sa@purple-lab-48271.iam.gserviceaccount.com": [
+      "roles/logging.logWriter"
+    ],
+    "packer-deployer@purple-lab-48271.iam.gserviceaccount.com": [
+      "projects/purple-lab-48271/roles/packerImageBuilder",
+      "projects/purple-lab-48271/roles/packerImageManager",
+      "roles/iap.tunnelResourceAccessor [packer-ssh-only]",
+      "roles/iap.tunnelResourceAccessor [packer-winrm-only]"
+    ],
+    "workstation-target-sa@purple-lab-48271.iam.gserviceaccount.com": [],
+    "web-target-sa@purple-lab-48271.iam.gserviceaccount.com": []
+  },
+  "secrets": {
+    "elastic-password": [],
+    "kibana-encryption-key": [],
+    "kibana-system-password": []
+  },
+  "custom_roles": {
+    "packerImageBuilder": [
+      "compute.disks.create",
+      "compute.disks.delete",
+      "compute.disks.get",
+      "compute.disks.use",
+      "compute.disks.useReadOnly",
+      "compute.globalOperations.get",
+      "compute.images.create",
+      "compute.images.get",
+      "compute.images.list",
+      "compute.instances.create",
+      "compute.instances.delete",
+      "compute.instances.get",
+      "compute.instances.getSerialPortOutput",
+      "compute.instances.setLabels",
+      "compute.instances.setMetadata",
+      "compute.instances.setServiceAccount",
+      "compute.instances.stop",
+      "compute.machineTypes.get",
+      "compute.networks.get",
+      "compute.projects.get",
+      "compute.regions.get",
+      "compute.subnetworks.get",
+      "compute.zoneOperations.get",
+      "compute.zones.get"
+    ],
+    "packerImageManager": [
+      "compute.images.create",
+      "compute.images.delete",
+      "compute.images.deprecate",
+      "compute.images.get",
+      "compute.images.list",
+      "compute.images.useReadOnly"
+    ],
+    "terraformComputeInstanceManager": [
+      "compute.disks.create",
+      "compute.disks.delete",
+      "compute.disks.get",
+      "compute.disks.use",
+      "compute.globalOperations.get",
+      "compute.images.useReadOnly",
+      "compute.instances.create",
+      "compute.instances.delete",
+      "compute.instances.get",
+      "compute.instances.list",
+      "compute.instances.setLabels",
+      "compute.instances.setMetadata",
+      "compute.instances.setServiceAccount",
+      "compute.machineTypes.get",
+      "compute.networks.get",
+      "compute.subnetworks.get",
+      "compute.subnetworks.use",
+      "compute.zoneOperations.get",
+      "compute.zones.get"
+    ],
+    "terraformFirewallManager": [
+      "compute.firewalls.create",
+      "compute.firewalls.delete",
+      "compute.firewalls.get",
+      "compute.firewalls.list",
+      "compute.firewalls.update"
+    ]
+  }
+}
