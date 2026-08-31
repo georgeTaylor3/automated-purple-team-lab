@@ -1,3 +1,12 @@
+resource "google_compute_address" "control_node_internal" {
+  name         = "control-node-internal"
+  region       = var.region
+  subnetwork   = google_compute_subnetwork.control.id
+  address_type = "INTERNAL"
+
+  description = "Reserved so Fleet Server's advertised URL survives control-node being destroyed and recreated. Already-enrolled agents can't rediscover Fleet Server on their own if the address changes -- a dynamic IP works until the first real recreation after agents exist."
+}
+
 resource "google_compute_instance" "control_node" {
   depends_on = [
     google_project_iam_member.terraform_deployer_compute_instance_manager
@@ -10,16 +19,16 @@ resource "google_compute_instance" "control_node" {
   boot_disk {
     initialize_params {
       image = "projects/${var.project_id}/global/images/family/purple-control-node"
-      size  = 30
+      size  = 50
       type  = "pd-balanced"
     }
   }
 
-  network_interface {
-    subnetwork = google_compute_subnetwork.control.name
-    # No access_config block: no external IP, matching every other
-    # workload in this lab.
-  }
+network_interface {
+  subnetwork = google_compute_subnetwork.control.name
+  network_ip = google_compute_address.control_node_internal.address
+  # no external IP
+}
 
   service_account {
     email  = local.control_node_service_account

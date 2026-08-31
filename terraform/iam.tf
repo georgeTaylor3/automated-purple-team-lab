@@ -40,6 +40,7 @@ resource "google_project_iam_custom_role" "terraform_compute_instance_manager" {
     "compute.disks.delete",
     "compute.disks.get",
     "compute.disks.use",
+    "compute.disks.resize",
     "compute.images.useReadOnly",
     "compute.subnetworks.use",
     "compute.subnetworks.get",
@@ -47,7 +48,7 @@ resource "google_project_iam_custom_role" "terraform_compute_instance_manager" {
     "compute.zones.get",
     "compute.machineTypes.get",
     "compute.globalOperations.get",
-    "compute.zoneOperations.get",
+    "compute.zoneOperations.get",  
   ]
 }
 
@@ -71,6 +72,12 @@ resource "google_secret_manager_secret_iam_member" "control_node_kibana_system_p
 
 resource "google_secret_manager_secret_iam_member" "control_node_kibana_encryption_key" {
   secret_id = "kibana-encryption-key"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${local.control_node_service_account}"
+}
+
+resource "google_secret_manager_secret_iam_member" "control_node_fleet_server_token" {
+  secret_id = "fleet-server-service-token"
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${local.control_node_service_account}"
 }
