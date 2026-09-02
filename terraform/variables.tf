@@ -37,3 +37,9 @@ variable "zone" {
   type        = string
   default     = "us-central1-a"
 }
+
+variable "fleet_enrollment_token" {
+  description = "Fleet enrollment token for the workstation-targets agent policy. Supplied via TF_VAR_fleet_enrollment_token, never committed."
+  type        = string
+  sensitive   = true
+}
