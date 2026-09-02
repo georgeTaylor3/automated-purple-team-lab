@@ -77,30 +77,61 @@ Elastic Agent provisioner hung 15+ min on `Invoke-WebRequest` downloading the ag
 
 First real Windows golden image built successfully: `purple-windows-workstation-20260822023748`. Includes Elastic Agent binary (unenrolled, pinned to 9.5.2). CALDERA agent intentionally not baked in — it's generated live by the CALDERA server at runtime, not a static downloadable binary.
 
-## CALDERA Packer build: apt-get update failed on port 80
+## control-node: boot disk filled completely, cascading failures
 
-First CALDERA build failed at the very first `apt-get update` -- every mirror timed out on port 80, even though `allow-packer-https-egress` (443) was already in place and had worked for every prior build.
+IAP tunnel and SSH connections to control-node started failing
+intermittently, then consistently, with a generic "Unexpected error while
+connecting" from gcloud. Retries that had worked before stopped working.
 
-**Cause:** Ubuntu's default apt sources use plain HTTP, not HTTPS. Nothing built before this needed `apt-get`, so the gap was never exposed -- the Windows and Ubuntu workstation builds only ever used HTTPS (`curl` for Elastic Agent, and Windows apt-equivalents happen over HTTPS by default).
+**Diagnosis process:**
+- `gcloud compute ssh ... --troubleshoot` flagged low disk space as a
+  possible cause, based on Google's own connectivity diagnostic.
+- Confirmed directly via the serial console: Elasticsearch's own logs
+  showed `java.io.IOException: No space left on device` repeatedly,
+  plus Docker's log driver failing to even write container logs for the
+  same reason. Not a guess -- the disk was genuinely, completely full.
 
-**First attempt at a fix:** rewrote apt sources to force HTTPS (`sed -i 's|http://|https://|g' ubuntu.sources`). Partially worked -- `security.ubuntu.com` supports HTTPS fine, but Google's own regional mirror (`us-central1.gce.archive.ubuntu.com`) does not, and every request to it timed out on 443 instead.
+**Root cause:** the boot disk was 30GB, sized before Fleet Server was
+added. Elasticsearch + Kibana + Fleet Server + CALDERA together, plus
+Docker's own image/build cache accumulated across every rebuild, filled
+it entirely.
 
-**Actual fix:** added a dedicated `allow-packer-http-egress` firewall rule (port 80), rather than continuing to force HTTPS. Confirmed with a real failed connection attempt, not a guess -- GCE's regional mirror genuinely has no HTTPS listener.
+**Fix:**
+- Resized the disk live, 30GB -> 50GB, via `terraform apply`. This
+  needed a new IAM permission on `terraformComputeInstanceManager`
+  (`compute.disks.resize`) -- Terraform had never resized a disk
+  before, only create/delete/use.
+- GCP resized the disk live, in place -- confirmed via `terraform plan`
+  showing "updated in-place", not a destroy+recreate. This meant
+  Elasticsearch and Fleet Server's data survived, unlike every previous
+  `control-node` change this project has made.
+- Growing the disk doesn't grow the filesystem automatically --
+  `gcloud compute instances reset` was needed to trigger cloud-init's
+  filesystem growth on boot. Confirmed via `df -h /` before and after.
 
-**Lesson:** A working HTTPS rule doesn't mean a dependency actually needs HTTPS. Confirm with the real error, not the fix that seems more secure on paper -- forcing HTTPS here would have kept failing indefinitely against a mirror that doesn't support it.
+**Collateral damage:** CALDERA's `conf/default.yml` was mid-write when
+the disk hit zero free space, leaving a 0-byte file behind. CALDERA
+doesn't regenerate this file if missing or empty -- it crashed on
+startup with `IndexError: list index out of range` trying to parse it.
 
-## CALDERA Packer build: UI build failed on Node.js version
+**First fix attempt was wrong:** deleted just the empty file, expecting
+CALDERA or Docker to regenerate it. This produced a different error
+(`FileNotFoundError`) and made it worse. The actual cause: Docker only
+auto-populates a named volume from the image's baked-in files once, the
+first time that volume is attached to a container. Since `caldera-conf`
+already existed from an earlier deploy, deleting one file inside it
+didn't trigger Docker to re-copy anything from the image.
 
-CALDERA install (git clone, pip install) succeeded, but the UI build step crashed:
-```
-Vite requires Node.js version 20.19+ or 22.12+.
-```
-Ubuntu 24.04's `apt` package for `nodejs` is 18.19.1 -- same class of problem as the Go version issue: Ubuntu's package archive lags well behind what current tooling expects.
+**Actual fix:** removed the whole volume (`docker volume rm
+purple-lab_caldera-conf`), then recreated the container. This triggered
+Docker's real first-time auto-populate behavior, restoring a genuinely
+intact `default.yml` from the image.
 
-**Fix:** added NodeSource's official repo (`deb.nodesource.com`) and installed Node 22.x from there instead of `apt`'s default package.
-
-**Lesson:** Same pattern as Go -- don't trust Ubuntu's `apt` version for fast-moving toolchains (Node, Go). Check the actual version constraint the software states, and pin from an upstream source when `apt`'s version is behind.
-
-## CALDERA golden image shipped
-
-First real CALDERA control image built successfully: `purple-caldera-control-20260822203246`. Full install verified working end to end during the build -- CALDERA actually started (`All systems ready.`), UI assets built, systemd service installed and enabled, Elastic Agent binary installed (unenrolled). All three golden images (Windows workstation, Ubuntu workstation, CALDERA control) now exist and are proven.
+**Lesson:** a full disk doesn't just block new writes -- it silently
+corrupts whatever was mid-write at the moment it filled, in every
+service running on that disk, not just the one that reported the
+error first. When recovering from disk exhaustion, check every
+service's data for torn writes, not just the one that's loudest about
+it. And named Docker volumes only auto-populate from the image once,
+at creation -- deleting a file from an existing volume never
+regenerates it from the image; only removing the whole volume does.
