@@ -59,6 +59,59 @@ resource "google_compute_firewall" "allow_target_to_caldera_c2_egress" {
   }
 }
 
+resource "google_compute_firewall" "allow_target_to_fleet_server_ingress" {
+  name        = "allow-target-to-fleet-server"
+  description = "Allow target workloads to initiate Elastic Agent enrollment/check-in traffic to Fleet Server on TCP 8220."
+
+  network   = google_compute_network.lab.name
+  direction = "INGRESS"
+  priority  = 1000
+
+  source_service_accounts = [
+    local.web_target_service_account,
+    local.workstation_service_account
+  ]
+
+  target_service_accounts = [
+    local.control_node_service_account
+  ]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8220"]
+  }
+
+  log_config {
+    metadata = "EXCLUDE_ALL_METADATA"
+  }
+}
+
+resource "google_compute_firewall" "allow_target_to_fleet_server_egress" {
+  name        = "allow-target-to-fleet-server-egress"
+  description = "Allow target workloads to send Fleet Server enrollment/check-in traffic toward the control subnet."
+
+  network   = google_compute_network.lab.name
+  direction = "EGRESS"
+  priority  = 1000
+
+  destination_ranges = [
+    "10.60.10.0/24"
+  ]
+
+  target_service_accounts = [
+    local.workstation_service_account
+  ]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8220"]
+  }
+
+  log_config {
+    metadata = "EXCLUDE_ALL_METADATA"
+  }
+}
+
 resource "google_compute_firewall" "allow_workstation_to_web_https_ingress" {
   name        = "allow-workstation-to-web-https"
   description = "Allow the Windows workstation workload to access the Linux web workload over HTTPS."
@@ -582,6 +635,60 @@ resource "google_compute_firewall" "deny_control_node_other_egress" {
 
   deny {
     protocol = "all"
+  }
+
+  log_config {
+    metadata = "EXCLUDE_ALL_METADATA"
+  }
+}
+
+resource "google_compute_firewall" "allow_target_to_elasticsearch_ingress" {
+  name        = "allow-target-to-elasticsearch"
+  description = "Allow enrolled target agents to ship data directly to Elasticsearch on TCP 9200, separate from Fleet Server's own check-in traffic on 8220."
+
+  network   = google_compute_network.lab.name
+  direction = "INGRESS"
+  priority  = 1000
+
+  source_service_accounts = [
+    local.web_target_service_account,
+    local.workstation_service_account
+  ]
+
+  target_service_accounts = [
+    local.control_node_service_account
+  ]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["9200"]
+  }
+
+  log_config {
+    metadata = "EXCLUDE_ALL_METADATA"
+  }
+}
+
+resource "google_compute_firewall" "allow_target_to_elasticsearch_egress" {
+  name        = "allow-target-to-elasticsearch-egress"
+  description = "Allow target workloads to send data to Elasticsearch on TCP 9200."
+
+  network   = google_compute_network.lab.name
+  direction = "EGRESS"
+  priority  = 1000
+
+  destination_ranges = [
+    "10.60.10.0/24"
+  ]
+
+  target_service_accounts = [
+    local.web_target_service_account,
+    local.workstation_service_account
+  ]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["9200"]
   }
 
   log_config {
