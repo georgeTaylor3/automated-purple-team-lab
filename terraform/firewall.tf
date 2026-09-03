@@ -695,3 +695,29 @@ resource "google_compute_firewall" "allow_target_to_elasticsearch_egress" {
     metadata = "EXCLUDE_ALL_METADATA"
   }
 }
+
+resource "google_compute_firewall" "allow_iap_to_workstation_target_ssh" {
+  name        = "allow-iap-to-workstation-target-ssh"
+  description = "Allow IAP TCP forwarding to workstation targets over SSH, for admin access."
+
+  network   = google_compute_network.lab.name
+  direction = "INGRESS"
+  priority  = 900
+
+  source_ranges = [
+    "35.235.240.0/20"
+  ]
+
+  target_service_accounts = [
+    local.workstation_service_account
+  ]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  log_config {
+    metadata = "EXCLUDE_ALL_METADATA"
+  }
+}
