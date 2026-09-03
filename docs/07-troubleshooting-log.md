@@ -135,3 +135,79 @@ service's data for torn writes, not just the one that's loudest about
 it. And named Docker volumes only auto-populate from the image once,
 at creation -- deleting a file from an existing volume never
 regenerates it from the image; only removing the whole volume does.
+
+
+## Terraform apply reports success but the same diff keeps reappearing
+
+`terraform apply` on `allow-target-to-fleet-server-ingress` reported
+"Modifications complete" twice, removing `source_ranges` -- but the
+next `terraform plan` showed the identical diff again both times.
+
+**Confirmed directly against the live resource** (not trusting
+Terraform's own report):
+```
+gcloud compute firewall-rules describe allow-target-to-fleet-server \
+  --format="yaml(sourceRanges,sourceServiceAccounts)"
+```
+`sourceRanges` was genuinely still present on GCP's side, despite two
+successful-looking applies.
+
+**Cause (likely):** GCP's firewall API appears to treat an omitted
+field on an `UPDATE` call as "leave unchanged" rather than "clear it."
+Terraform's in-place update path never actually sent an explicit
+empty value for the field.
+
+**Fix:** force a full destroy+recreate instead of an in-place update:
+```
+terraform apply -replace="google_compute_firewall.allow_target_to_fleet_server_ingress"
+```
+A `CREATE` call sends the complete desired state, which correctly
+omitted the field this time. Confirmed via the same `gcloud describe`
+check afterward.
+
+**Lesson:** "Apply complete" is not the same as "the live resource
+actually matches what I intended." When the identical diff reappears
+after a reportedly successful apply, verify against the live resource
+directly before assuming Terraform's own state is correct.
+
+## Elastic Agent enrollment failed: control-node was stopped
+
+First real workstation target (`linux-workstation-target`) failed to
+enroll with Fleet at boot, with `connection timed out` reaching
+`10.60.10.39:8220`.
+
+**Cause:** `control-node` (and therefore Fleet Server) is deliberately
+stopped between sessions to save cost. The workstation target booted
+and ran its enrollment script before anyone had started `control-node`
+back up -- nothing was listening at all.
+
+**Fix (immediate):** started `control-node`, waited for its own
+deploy sequence to finish, then manually re-ran the enrollment command
+directly on the workstation target rather than waiting for a full
+reboot.
+
+**Fix (durable):** added a reachability wait loop to
+`boot-agent-enrollment.sh` -- polls Fleet Server's host:port via raw
+TCP up to 20 times (5 minutes) before attempting enrollment, instead
+of failing on the first attempt with no retry.
+
+**Lesson:** this project's whole premise is stopping instances between
+sessions to save cost -- any boot-time script that depends on another
+instance being up needs to tolerate that instance still being mid-boot
+or not yet started, not assume it's already there.
+
+## First workstation target had no admin SSH access at all
+
+After deploying `linux-workstation-target`, `gcloud compute ssh` to it
+failed. Checked every existing firewall rule
+(`gcloud compute firewall-rules list --format="table(name,targetServiceAccounts)"`)
+and found none targeted `workstation-target-sa` for inbound traffic at
+all -- every existing IAP-SSH rule targeted `packer-builder-sa` or
+`control-node-sa` specifically.
+
+**Fix:** added `allow-iap-to-workstation-target-ssh`, same pattern as
+the existing `control-node` admin-access rule.
+
+**Lesson:** each new workload identity needs its own explicit admin
+access rule -- it doesn't inherit reachability from any other
+identity's rules, no matter how similar the pattern looks.
