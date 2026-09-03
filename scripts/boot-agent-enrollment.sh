@@ -62,6 +62,36 @@ fi
 
 echo "Enrolling Elastic Agent with Fleet at $FLEET_URL ..."
 
+# Wait for Fleet Server to actually be reachable before attempting
+# enrollment. This directly addresses a real failure hit on 2026-09-02:
+# control-node (and therefore Fleet Server) is deliberately stopped
+# between sessions to save cost, and a workstation target booting
+# before control-node has finished its own startup previously produced
+# a hard, unrecoverable enrollment failure with no retry -- requiring
+# a manual re-run. Bounded retries with backoff here means a normal
+# timing mismatch resolves on its own instead of needing intervention.
+FLEET_HOST=$(echo "$FLEET_URL" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')
+FLEET_PORT=$(echo "$FLEET_URL" | sed -E 's#^.*:([0-9]+).*$#\1#')
+
+echo "Waiting for Fleet Server at ${FLEET_HOST}:${FLEET_PORT} to become reachable..."
+FLEET_REACHABLE=0
+for i in $(seq 1 20); do
+  if timeout 3 bash -c "cat < /dev/null > /dev/tcp/${FLEET_HOST}/${FLEET_PORT}" 2>/dev/null; then
+    FLEET_REACHABLE=1
+    echo "Fleet Server reachable after $((i - 1)) retries."
+    break
+  fi
+  echo "  Fleet Server not reachable yet (attempt $i/20), waiting 15s..."
+  sleep 15
+done
+
+if [ "$FLEET_REACHABLE" -ne 1 ]; then
+  echo "ERROR: Fleet Server at ${FLEET_HOST}:${FLEET_PORT} was not reachable after 20 attempts (~5 minutes)."
+  echo "control-node may not be running. Enrollment not attempted -- rerun this script manually once control-node is confirmed up:"
+  echo "  sudo bash /var/lib/google/startup-script"
+  exit 1
+fi
+
 # --insecure: Fleet Server's own listener uses a self-signed cert (same
 # posture as every local/dev enrollment so far in this project). Not
 # appropriate once this moves toward the real public-facing demo -- see
