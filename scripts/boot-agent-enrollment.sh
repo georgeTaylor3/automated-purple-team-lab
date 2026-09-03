@@ -88,7 +88,7 @@ done
 if [ "$FLEET_REACHABLE" -ne 1 ]; then
   echo "ERROR: Fleet Server at ${FLEET_HOST}:${FLEET_PORT} was not reachable after 20 attempts (~5 minutes)."
   echo "control-node may not be running. Enrollment not attempted -- rerun this script manually once control-node is confirmed up:"
-  echo "  sudo bash /var/lib/google/startup-script"
+  echo "  sudo google_metadata_script_runner startup"
   exit 1
 fi
 
