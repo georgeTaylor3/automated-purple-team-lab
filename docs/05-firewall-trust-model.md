@@ -37,8 +37,20 @@ The target subnet is:
 
     10.60.20.0/24
 
-The control and target networks are intentionally treated as separate trust
-zones even though they are part of the same VPC.
+The workstation subnet is:
+
+    10.60.30.0/24
+
+Workstation targets (`workstation-target-sa`) live in the workstation
+subnet, confirmed once `linux-workstation-target` was actually deployed --
+this is a separate subnet from the target subnet, not the same one. Every
+firewall rule in this doc is matched by service account identity, not by
+subnet CIDR, so this separation doesn't require different rules per
+subnet -- it's called out here just to keep this doc factually accurate
+about the real network layout.
+
+The control and target/workstation networks are intentionally treated as
+separate trust zones even though they are part of the same VPC.
 
 ![Network trust boundaries](./svg/network-trust-boundaries.svg)
 
@@ -158,6 +170,52 @@ Same purpose as `deny-target-to-control`: closes off everything
 control-node-sa is not explicitly allowed, once the actual allow rules
 above were confirmed sufficient for a real working deploy.
 
+### allow-target-to-fleet-server (ingress) / allow-target-to-fleet-server-egress
+
+Direction: ingress (at control-node-sa) / egress (at target identities)
+
+Lets target workloads reach control-node on TCP 8220 (Fleet Server
+check-in/enrollment traffic), separate from CALDERA's own C2 port. Added
+once real agent enrollment against a deployed target was actually
+attempted -- CALDERA C2 access alone didn't cover this.
+
+Both sides match by `source_service_accounts` / `target_service_accounts`,
+not CIDR -- this matters more than it might look, since targets can live
+on either the target subnet or the workstation subnet (see Network
+zones), and identity-based matching means the rule works correctly
+regardless of which subnet a given target actually lives on.
+
+An earlier version of the ingress rule was written using
+`source_ranges` (a single subnet CIDR) instead of
+`source_service_accounts`. It was caught and corrected before it caused
+a real problem, but is worth noting: had it shipped as originally
+written, it would only have matched the target subnet, and would have
+silently failed to match `linux-workstation-target` once deployed to the
+workstation subnet instead.
+
+### allow-target-to-elasticsearch (ingress) / allow-target-to-elasticsearch-egress
+
+Direction: ingress (at control-node-sa) / egress (at target identities)
+
+Lets enrolled target agents ship their actual telemetry data to
+Elasticsearch on TCP 9200 -- separate from Fleet Server's own check-in
+traffic on 8220. An enrolled agent that could reach Fleet Server but not
+Elasticsearch would enroll successfully but never actually send any
+security data, which would have silently defeated the whole point of
+this lab without this rule.
+
+### allow-iap-to-workstation-target-ssh
+
+Direction: ingress
+
+Admin access to workstation targets, same IAP pattern as every other
+admin-access rule in this doc. Added after deploying the first real
+workstation target and discovering no rule existed for it at all -- every
+prior IAP-SSH rule targeted `packer-builder-sa` or `control-node-sa`
+specifically. Each new workload identity needs its own explicit rule; it
+does not inherit reachability from any other identity's rule, however
+similar the pattern.
+
 ## Firewall logging
 
 Logging is enabled for the initial firewall rules.
@@ -187,18 +245,20 @@ roles.
 
 ## Current limitations
 
-CALDERA (containerized) and control-node are running as real Compute Engine
-workloads as of the sessions covering `08-packer-image-pipeline.md` and the
-control-node self-deploy work. web-target-sa and workstation-target-sa
-still have no Compute Engine workloads attached.
+CALDERA (containerized), control-node, and now `linux-workstation-target`
+(the first real `workstation-target-sa` workload) are running as real
+Compute Engine instances. `web-target-sa` still has no Compute Engine
+workload attached.
+
+Fleet Server is deployed to control-node and has successfully enrolled a
+real workstation target, not just locally-tested as before.
 
 The current firewall policy also does not allow:
 
 - public SSH or RDP
 - public CALDERA access
-- Fleet Server enrollment from outside control-node's own Docker network
-  (Fleet Server itself runs locally-tested only so far, not yet deployed
-  to control-node)
+- public Fleet Server enrollment (only reachable from other lab
+  workloads, not the internet)
 - administrative management paths beyond IAP
 
 Those will be allowed when the resource or function is necessary.
