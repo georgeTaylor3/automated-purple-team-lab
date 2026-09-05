@@ -9,28 +9,33 @@
 # your current shell rather than a throwaway subshell:
 #
 #   source scripts/set-lab-vars.sh
-
+ 
 PROJECT_ID=$(gcloud config get-value project)
 export PROJECT_ID
-
+ 
 PACKER_DEPLOYER_SA="packer-deployer@${PROJECT_ID}.iam.gserviceaccount.com"
 export PACKER_DEPLOYER_SA
-
+ 
 PACKER_BUILDER_SA="packer-builder-sa@${PROJECT_ID}.iam.gserviceaccount.com"
 export PACKER_BUILDER_SA
-
+ 
 TERRAFORM_DEPLOYER_SA="terraform-deployer@${PROJECT_ID}.iam.gserviceaccount.com"
 export TERRAFORM_DEPLOYER_SA
-
+ 
 CONTROL_NODE_SA="control-node-sa@${PROJECT_ID}.iam.gserviceaccount.com"
 export CONTROL_NODE_SA
-
+ 
 MY_ACCOUNT=$(gcloud config get-value account)
 export MY_ACCOUNT
-
+ 
+echo "Fetching TF_VAR_fleet_enrollment_token from Secret Manager..."
+TF_VAR_fleet_enrollment_token=$(gcloud secrets versions access latest --secret=fleet-enrollment-token --project="$PROJECT_ID" 2>/dev/null || echo "")
+export TF_VAR_fleet_enrollment_token
+ 
 echo "PROJECT_ID=$PROJECT_ID"
 echo "PACKER_DEPLOYER_SA=$PACKER_DEPLOYER_SA"
 echo "PACKER_BUILDER_SA=$PACKER_BUILDER_SA"
 echo "TERRAFORM_DEPLOYER_SA=$TERRAFORM_DEPLOYER_SA"
 echo "CONTROL_NODE_SA=$CONTROL_NODE_SA"
 echo "MY_ACCOUNT=$MY_ACCOUNT"
+echo "TF_VAR_fleet_enrollment_token=$([ -n "$TF_VAR_fleet_enrollment_token" ] && echo '(set)' || echo '(NOT SET -- secret missing or inaccessible)')"
