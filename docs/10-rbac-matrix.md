@@ -14,7 +14,7 @@ the actual project before relying on it -- see "Verification commands"
 at the end.
 
 **Last compiled:** 2026-08-29
-**Project:** `purple-lab-48271` (Automated Purple Team Lab)
+**Project:** `YOUR_PROJECT_ID` (Automated Purple Team Lab)
 
 ## Principle
 
