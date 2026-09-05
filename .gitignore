@@ -129,3 +129,5 @@ packer_cache/
 *.tfplan
 shared/lab-vars.json
 .env
+docs/rbac-baseline.json
+docs/rbac-baseline.json.sig

@@ -1,35 +1,37 @@
 {
-  "generated": "2026-08-29T19:08:58Z",
-  "project_id": "purple-lab-48271",
+  "generated": "2026-09-04T21:23:41Z",
+  "project_id": "YOUR_PROJECT_ID",
   "service_accounts": {
-    "terraform-deployer@purple-lab-48271.iam.gserviceaccount.com": [
-      "projects/purple-lab-48271/roles/terraformComputeInstanceManager",
-      "projects/purple-lab-48271/roles/terraformFirewallManager",
+    "terraform-deployer@YOUR_PROJECT_ID.iam.gserviceaccount.com": [
+      "projects/YOUR_PROJECT_ID/roles/terraformComputeInstanceManager",
+      "projects/YOUR_PROJECT_ID/roles/terraformFirewallManager",
       "roles/browser",
       "roles/compute.networkAdmin",
       "roles/iam.roleAdmin",
       "roles/resourcemanager.projectIamAdmin",
       "roles/secretmanager.admin"
     ],
-    "caldera-control-sa@purple-lab-48271.iam.gserviceaccount.com": [],
+    "caldera-control-sa@YOUR_PROJECT_ID.iam.gserviceaccount.com": [],
     "307067328756-compute@developer.gserviceaccount.com": [
       "roles/editor"
     ],
-    "control-node-sa@purple-lab-48271.iam.gserviceaccount.com": [],
-    "packer-builder-sa@purple-lab-48271.iam.gserviceaccount.com": [
+    "control-node-sa@YOUR_PROJECT_ID.iam.gserviceaccount.com": [],
+    "packer-builder-sa@YOUR_PROJECT_ID.iam.gserviceaccount.com": [
       "roles/logging.logWriter"
     ],
-    "packer-deployer@purple-lab-48271.iam.gserviceaccount.com": [
-      "projects/purple-lab-48271/roles/packerImageBuilder",
-      "projects/purple-lab-48271/roles/packerImageManager",
+    "packer-deployer@YOUR_PROJECT_ID.iam.gserviceaccount.com": [
+      "projects/YOUR_PROJECT_ID/roles/packerImageBuilder",
+      "projects/YOUR_PROJECT_ID/roles/packerImageManager",
       "roles/iap.tunnelResourceAccessor [packer-ssh-only]",
       "roles/iap.tunnelResourceAccessor [packer-winrm-only]"
     ],
-    "workstation-target-sa@purple-lab-48271.iam.gserviceaccount.com": [],
-    "web-target-sa@purple-lab-48271.iam.gserviceaccount.com": []
+    "workstation-target-sa@YOUR_PROJECT_ID.iam.gserviceaccount.com": [],
+    "web-target-sa@YOUR_PROJECT_ID.iam.gserviceaccount.com": []
   },
   "secrets": {
     "elastic-password": [],
+    "fleet-enrollment-token": [],
+    "fleet-server-service-token": [],
     "kibana-encryption-key": [],
     "kibana-system-password": []
   },
@@ -72,6 +74,7 @@
       "compute.disks.create",
       "compute.disks.delete",
       "compute.disks.get",
+      "compute.disks.resize",
       "compute.disks.use",
       "compute.globalOperations.get",
       "compute.images.useReadOnly",

@@ -75,13 +75,14 @@ echo
 echo "Baseline written to $OUT"
 
 # -----------------------------------------------------------------------
-# Non-repudiation: a detached signature over the baseline content. A
-# hash alone only proves the file wasn't corrupted -- anyone could
+# Non-repudiation: a detached GPG signature over the baseline content.
+#
+# A hash alone only proves the file wasn't corrupted -- anyone could
 # recompute a matching hash. A signature from a private key only the
 # signer holds proves WHO approved this exact content, and the signer
-# cannot credibly deny it. This uses the same YubiKey-backed key already
-# configured for signed git commits (git config user.signingkey), not a
-# separate key to manage.
+# cannot credibly deny it. This uses the same YubiKey-backed GPG key
+# already configured for signed git commits (git config user.signingkey),
+# not a separate key to manage.
 # -----------------------------------------------------------------------
 SIGNING_KEY=$(git config --get user.signingkey || true)
 SIGN_FORMAT=$(git config --get gpg.format || echo "openpgp")
@@ -111,5 +112,31 @@ fi
 
 echo
 echo "Baseline signed: $SIG_FILE"
-echo "Commit both $OUT and $SIG_FILE together."
-echo "scripts/rbac-diff.sh will refuse to trust an unsigned or tampered baseline."
+echo "docs/rbac-baseline.json and $SIG_FILE are gitignored -- local-use"
+echo "only, never committed. scripts/rbac-diff.sh will refuse to trust"
+echo "an unsigned or tampered baseline."
+
+# -----------------------------------------------------------------------
+# Two outputs from this one script:
+#
+#   1. docs/rbac-baseline.json (gitignored, local-use only) -- the real
+#      baseline, real project ID, real service account emails. This is
+#      what scripts/rbac-diff.sh verifies and diffs live state against.
+#
+#   2. docs/rbac-baseline.sanitized.json (committed) -- the same
+#      structure with the project ID replaced by a placeholder. Not
+#      signed, not used for verification -- it exists so anyone who
+#      clones this repo, deploys their own copy, and runs this same
+#      script can compare THEIR real baseline's structure against what
+#      this project actually documents: same service account names,
+#      same custom role names, same permission lists, differing only
+#      by project ID. No secret VALUES ever appear in this file to
+#      begin with (only secret NAMES and who has access to them), so a
+#      straight project-ID substitution is sufficient sanitization.
+# -----------------------------------------------------------------------
+SANITIZED_OUT="docs/rbac-baseline.sanitized.json"
+
+sed "s/${PROJECT_ID}/YOUR_PROJECT_ID/g" "$OUT" > "$SANITIZED_OUT"
+
+echo
+echo "Sanitized example written to $SANITIZED_OUT (safe to commit)."
