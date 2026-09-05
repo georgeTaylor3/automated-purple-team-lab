@@ -92,6 +92,13 @@ HUMAN_ACCOUNT_VALUE=""
 # tree and Git index contain the same content.
 declare -A REPORTED_MATCHES=()
 
+# Findings grouped by file, printed together at the end instead of
+# interleaved with whichever pattern happened to be scanning at the
+# time -- makes it easy to see whether one file has a lot of hits
+# without hunting for them across the scan's chronological output.
+declare -A FILE_FINDINGS=()
+FILE_ORDER=()
+
 
 # ---------------------------------------------------------------------------
 # Basic output helpers
@@ -245,6 +252,7 @@ report_match() {
 
     local display_file
     local key
+    local tag
 
     display_file="$(safe_display_path "$file")"
 
@@ -258,18 +266,38 @@ report_match() {
 
     if [[ "$severity" == "CRITICAL" ]]; then
         CRITICAL_HIT=1
-
-        printf '%b\n' \
-            "${RED}[CRITICAL] ${display_file}:${line_number} matched ${label}${RESET}"
+        tag="${RED}[CRITICAL]${RESET}"
     else
         REVIEW_HIT=1
-
-        printf '%b\n' \
-            "${YELLOW}[REVIEW] ${display_file}:${line_number} matched ${label}${RESET}"
+        tag="${YELLOW}[REVIEW]${RESET}"
     fi
 
-    printf '%b\n' \
-        "    ${CYAN}${matched_line}${RESET}"
+    if [[ -z "${FILE_FINDINGS[$display_file]+x}" ]]; then
+        FILE_ORDER+=("$display_file")
+        FILE_FINDINGS["$display_file"]=""
+    fi
+
+    FILE_FINDINGS["$display_file"]+="$(printf '  %b line %s matched %s\n    %b%s%b' \
+        "$tag" "$line_number" "$label" "$CYAN" "$matched_line" "$RESET")"$'\n'
+}
+
+
+# ---------------------------------------------------------------------------
+# Print all accumulated findings, grouped by file
+# ---------------------------------------------------------------------------
+
+print_grouped_findings() {
+    if [[ "${#FILE_ORDER[@]}" -eq 0 ]]; then
+        return 0
+    fi
+
+    print_header "Findings by file"
+
+    local f
+    for f in "${FILE_ORDER[@]}"; do
+        printf '%b\n' "${CYAN}${f}${RESET}"
+        printf '%s\n' "${FILE_FINDINGS[$f]}"
+    done
 }
 
 
@@ -801,6 +829,9 @@ else
     printf '%b\n' \
         "${CYAN}[INFO] No security-scan-patterns.local file present; local checks skipped.${RESET}"
 fi
+
+
+print_grouped_findings
 
 
 # ---------------------------------------------------------------------------
