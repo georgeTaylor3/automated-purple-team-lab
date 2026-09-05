@@ -84,12 +84,12 @@ echo "=== 6. gcloud authentication (interactive -- can't be automated) ==="
 echo "Run these now if you haven't already:"
 echo "  gcloud auth login"
 echo "  gcloud auth application-default login"
-echo "  gcloud config set project purple-lab-48271"
+echo "  gcloud config set project YOUR_PROJECT_ID"
 read -r -p "Press enter once you've completed gcloud auth login and application-default login... "
 
 PROJECT_ID=$(gcloud config get-value project)
 if [ -z "$PROJECT_ID" ]; then
-  echo "ERROR: no project set. Run 'gcloud config set project purple-lab-48271' and re-run this script."
+  echo "ERROR: no project set. Run 'gcloud config set project YOUR_PROJECT_ID' and re-run this script."
   exit 1
 fi
 echo "Using project: $PROJECT_ID"

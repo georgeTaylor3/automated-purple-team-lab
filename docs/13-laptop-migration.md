@@ -24,7 +24,7 @@ things it can't automate:
 ```bash
 gcloud auth login
 gcloud auth application-default login
-gcloud config set project purple-lab-48271
+gcloud config set project <your-project-id>
 ```
 
 Press enter to continue once those are done. The script then:
