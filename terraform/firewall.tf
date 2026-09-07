@@ -99,7 +99,8 @@ resource "google_compute_firewall" "allow_target_to_fleet_server_egress" {
   ]
 
   target_service_accounts = [
-    local.workstation_service_account
+    local.workstation_service_account,
+    local.web_target_service_account
   ]
 
   allow {
@@ -710,6 +711,32 @@ resource "google_compute_firewall" "allow_iap_to_workstation_target_ssh" {
 
   target_service_accounts = [
     local.workstation_service_account
+  ]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  log_config {
+    metadata = "EXCLUDE_ALL_METADATA"
+  }
+}
+
+resource "google_compute_firewall" "allow_iap_to_web_target_ssh" {
+  name        = "allow-iap-to-web-target-ssh"
+  description = "Allow IAP TCP forwarding to the web target over SSH, for admin access."
+
+  network   = google_compute_network.lab.name
+  direction = "INGRESS"
+  priority  = 900
+
+  source_ranges = [
+    "35.235.240.0/20"
+  ]
+
+  target_service_accounts = [
+    local.web_target_service_account
   ]
 
   allow {
