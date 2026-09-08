@@ -211,3 +211,96 @@ the existing `control-node` admin-access rule.
 **Lesson:** each new workload identity needs its own explicit admin
 access rule -- it doesn't inherit reachability from any other
 identity's rules, no matter how similar the pattern looks.
+
+## IAP tunnel instability: coffee shop wifi, VPN, and a workaround worth keeping
+
+Kibana and CALDERA's browser UI became unreliable partway through tonight's
+session -- tunnels would report `Listening` but then either hang
+indefinitely (spinner never resolving) or throw repeated
+`ConnectionCreationError: Unexpected error while connecting` on individual
+sub-streams.
+
+**Diagnosis process, ruling out causes one at a time:**
+
+1. Confirmed `control-node` itself was healthy throughout (`gcloud compute
+   instances describe ... --format="value(status)"` returned `RUNNING`
+   consistently, docker containers all `Up`).
+2. Confirmed basic connectivity was fine (`ping -c 5 8.8.8.8` showed 0%
+   packet loss).
+3. Initially suspected the coffee shop wifi itself, or Proton VPN adding
+   an unstable extra hop -- installing NumPy into gcloud's *bundled*
+   Python interpreter (a separate, isolated Python from the system one --
+   see below) resolved the throughput *warnings* but not the harder
+   connection *errors*.
+4. Moved to stable home fiber wifi (~1Gb, actively streaming Netflix and
+   Spotify with zero issue) -- tunnel instability continued. This ruled
+   out network quality as the cause entirely.
+5. Root cause never fully identified. Genuinely inconclusive -- worth
+   revisiting if it recurs, rather than assuming any single fix (NumPy,
+   network change) is the complete answer.
+
+**gcloud's bundled Python detail, worth remembering:** `gcloud info | grep
+-i python` shows gcloud ships its own fully separate Python interpreter
+(`/usr/lib/google-cloud-sdk/platform/bundledpythonunix/bin/python3`),
+isolated from the system's `python3` and from `~/.local` site-packages.
+Installing a package via regular `pip` has zero effect on gcloud's own
+Python unless installed directly into that bundled interpreter, or
+`CLOUDSDK_PYTHON_SITEPACKAGES=1` is set to let it see the system
+site-packages.
+
+**The actual workaround that unblocked the session:** rather than fight
+the browser tunnel further, authenticated to CALDERA's API directly via
+its session-cookie login endpoint, from an SSH session on `control-node`
+itself (SSH remained reliably stable throughout, even when browser
+tunnels didn't):
+
+```
+curl -c /tmp/caldera_cookies.txt -X POST http://localhost:8888/enter \
+  -d "username=red&password=admin"
+```
+
+From there, every subsequent CALDERA API call used `-b
+/tmp/caldera_cookies.txt` for auth, and Elasticsearch was queried directly
+via `-u elastic:PASSWORD` -- both entirely as `localhost` traffic on the
+VM itself, no tunnel round-trip through the client machine's network at
+all. This let the actual operation get launched, monitored, and closed
+out even while the browser remained unreliable.
+
+See `docs/14-caldera-elastic-api-reference.md` for the specific commands
+captured from tonight, worth reusing directly next time a tunnel is
+flaky rather than re-deriving them.
+
+## CALDERA's Discovery adversary profile loops on boilerplate system accounts
+
+The built-in "Discovery" adversary profile's `atomic_ordering` lists 12
+distinct techniques, but a real operation against a freshly-provisioned
+Ubuntu target ran the same technique ("Process Discovery" / T1057,
+`ps aux | grep #{host.user.name}`) 25 times in a row before the session
+was manually closed.
+
+**Cause, confirmed via the operation's own `chain` data:** an earlier step
+("Account Discovery: Local Account") enumerated `/etc/passwd` and found
+CALDERA/facts for every system service account on the box (`list`,
+`daemon`, `sync`, etc. -- standard Ubuntu boilerplate, not real users).
+CALDERA's atomic planner then correctly, one at a time, tried "Process
+Discovery" against each of those usernames -- since none of them have any
+actual running processes, each attempt produces no useful result
+(`status: -3`), and the planner moves to the next discovered username
+rather than the next *technique* in the ordering.
+
+**This is expected planner behavior, not a bug.** The atomic planner
+selects the next available ability whose requirements are satisfied by
+current facts -- it has no built-in judgment about whether a fact (a
+boring system account name) is actually worth pursuing. A target with
+more real user accounts, or a smaller seeded fact set, would move through
+the technique list more directly.
+
+**Worth remembering for future demo design:** an automated Discovery
+operation against a bare, just-provisioned target can spend a long time
+grinding through low-value system accounts before reaching anything more
+distinctive. For a public demo with a strict time budget (see the
+planned 15-minute session timer), this is worth accounting for --
+either by seeding fewer/no boilerplate account facts, choosing a
+different starter profile, or accepting that "watch it work through
+housekeeping first" is itself a realistic, honest thing to show a
+visitor about how automated recon actually behaves.
