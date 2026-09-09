@@ -95,6 +95,27 @@ build {
     ]
   }
 
+  # Docker + Juice Shop image, baked in at build time. Juice Shop
+  # itself needs no per-instance secret/config, unlike nginx's TLS
+  # cert -- safe to bake the image in directly, just start it fresh
+  # at boot (see web-target-setup.sh). Pinned version, same discipline
+  # as every other tool in this project.
+  provisioner "shell" {
+    inline = [
+      "set -e",
+      "sudo apt-get update",
+      "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl gnupg",
+      "sudo install -m 0755 -d /etc/apt/keyrings",
+      "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg",
+      "sudo chmod a+r /etc/apt/keyrings/docker.gpg",
+      "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo \\\"$VERSION_CODENAME\\\") stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
+      "sudo apt-get update",
+      "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io",
+      "sudo docker pull bkimminich/juice-shop:v20.1.1",
+      "echo 'Docker installed, Juice Shop image pulled and baked in.'"
+    ]
+  }
+
   # Elastic Agent: same pattern and version pin as the other target
   # images. Binary only -- enrollment needs a Fleet URL and token
   # specific to a running instance, deferred to a boot-time script.

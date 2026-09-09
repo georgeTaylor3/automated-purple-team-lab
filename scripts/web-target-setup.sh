@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # web-target-setup.sh
 #
-# Runs once at instance boot on web-target. nginx itself is already
-# baked into the golden image (packer/web-target) -- this generates a
-# fresh, instance-specific self-signed cert, configures and starts
-# nginx, then enrolls Elastic Agent (also already baked in).
+# Runs once at instance boot on web-target. nginx and the Juice Shop
+# Docker image are already baked into the golden image
+# (packer/web-target) -- this generates a fresh, instance-specific
+# self-signed cert, configures and starts nginx as a reverse proxy,
+# starts the Juice Shop container, then enrolls Elastic Agent (also
+# already baked in).
 #
 # Required instance metadata keys (set via Terraform):
 #   fleet-url
@@ -19,6 +21,9 @@ echo "--- web-target-setup starting: $(date -u +%FT%TZ) ---"
 
 # -----------------------------------------------------------------------
 # nginx: cert generation and config, deferred from image-build time.
+# Reverse-proxies to Juice Shop, listening only on 127.0.0.1:3000 --
+# the vulnerable app itself is never directly reachable on the network,
+# only through nginx's TLS-terminated 443.
 # -----------------------------------------------------------------------
 
 if [ ! -f /etc/nginx/ssl/web-target.crt ]; then
@@ -37,8 +42,11 @@ server {
     ssl_certificate_key /etc/nginx/ssl/web-target.key;
 
     location / {
-        return 200 "purple-team-lab web-target placeholder\n";
-        add_header Content-Type text/plain;
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 NGINXCONF
@@ -53,6 +61,22 @@ fi
 sudo systemctl enable nginx
 sudo systemctl restart nginx
 echo "nginx running on 443."
+
+# -----------------------------------------------------------------------
+# Juice Shop: image already baked in at build time (packer/web-target).
+# Bound to 127.0.0.1 only -- nginx is the only path to it.
+# -----------------------------------------------------------------------
+
+if ! sudo docker ps --format '{{.Names}}' | grep -q '^juice-shop$'; then
+  echo "Starting Juice Shop..."
+  sudo docker run -d --restart unless-stopped \
+    -p 127.0.0.1:3000:3000 \
+    --name juice-shop \
+    bkimminich/juice-shop:v20.1.1
+  echo "Juice Shop started."
+else
+  echo "Juice Shop container already running. Skipping."
+fi
 
 # -----------------------------------------------------------------------
 # Elastic Agent enrollment -- same logic as boot-agent-enrollment.sh.
