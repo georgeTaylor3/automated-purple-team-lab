@@ -104,18 +104,24 @@ fi
   --force
 echo "Elastic Agent registered with Fleet Server at ${FLEET_HOST}:${FLEET_PORT}"
 echo "Starting Caldera Agent in the background"
+
 SANDCAT_BIN="/opt/sandcat/splunkd"
+
 if [ ! -x "$SANDCAT_BIN" ]; then
-  echo "No existing Sandcat binary found -- downloading fresh (new identity)."
+  echo "No existing Sandcat binary found -- downloading."
   sudo mkdir -p /opt/sandcat
   server="http://10.60.10.39:8888"
   curl -s -X POST -H "file:sandcat.go" -H "platform:linux" -H "architecture:amd64" "$server/file/download" | sudo tee "$SANDCAT_BIN" > /dev/null
   sudo chmod +x "$SANDCAT_BIN"
 else
-  echo "Existing Sandcat binary found -- reusing (preserves identity across stop/start)."
+  echo "Existing Sandcat binary found -- reusing."
 fi
-sudo nohup "$SANDCAT_BIN" -server http://10.60.10.39:8888 -group red > /var/log/sandcat.log 2>&1 &
-echo "Caldera Agent running in background"
-echo ""
-echo "--- Boot agent enrollment finished: $(date -u +%FT%TZ) ---"
 
+# Fixed, self-chosen paw derived from this instance's own hostname,
+# passed identically on every boot -- no reliance on CALDERA's
+# randomly-assigned identity or on parsing it back out of a log file.
+SANDCAT_PAW=$(hostname)
+echo "Starting Sandcat with fixed paw: $SANDCAT_PAW"
+sudo nohup "$SANDCAT_BIN" -server http://10.60.10.39:8888 -group red -paw "$SANDCAT_PAW" > /var/log/sandcat.log 2>&1 &
+echo "Caldera Agent running in background"
+echo "---------------------------------------------------"
