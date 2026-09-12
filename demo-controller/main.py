@@ -43,15 +43,31 @@ db = firestore.Client()
 STATE_DOC = db.collection("lab_state").document("current")
 
 
-@app.errorhandler(Exception)
+@app.errorhandler(500)
 def handle_error(e):
-    # A public-facing endpoint should never show a raw stack trace or
-    # internal error detail to a random visitor. 
-    # Log the real detail server-side (visible in Cloud
-    # Run's own logs, which only I can see), and return a generic
-    # message to whoever made the request.
+    # Scoped to 500 (genuine server errors) specifically, not
+    # @app.errorhandler(Exception) -- that broader version was also
+    # catching Flask's own normal routing errors (like a plain 404 for
+    # an unknown URL) and masking them as a scary "internal error",
+    # discovered for real on 2026-09-12 when a redeploy hadn't
+    # actually happened yet and a routine 404 got hidden this way.
     app.logger.exception("Unhandled error")
     return jsonify({"error": "internal error"}), 500
+
+
+@app.errorhandler(400)
+def handle_bad_request(e):
+    return jsonify({"error": "bad request"}), 400
+
+
+@app.errorhandler(404)
+def handle_not_found(e):
+    return jsonify({"error": "not found"}), 404
+
+
+@app.errorhandler(429)
+def handle_rate_limited(e):
+    return jsonify({"error": "too many requests, please slow down"}), 429
 
 
 def utcnow_iso():

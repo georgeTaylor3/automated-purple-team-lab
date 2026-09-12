@@ -11,6 +11,7 @@ resource "google_compute_instance" "control_node" {
   depends_on = [
     google_project_iam_member.terraform_deployer_compute_instance_manager
   ]
+  tags = ["control-node"]
   name         = "control-node"
   project      = var.project_id
   zone         = var.zone

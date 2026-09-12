@@ -35,6 +35,7 @@ resource "google_project_iam_custom_role" "terraform_compute_instance_manager" {
     "compute.instances.list",
     "compute.instances.setMetadata",
     "compute.instances.setLabels",
+    "compute.instances.setTags",
     "compute.instances.setServiceAccount",
     "compute.disks.create",
     "compute.disks.delete",
