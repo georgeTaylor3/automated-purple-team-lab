@@ -748,3 +748,29 @@ resource "google_compute_firewall" "allow_iap_to_web_target_ssh" {
     metadata = "EXCLUDE_ALL_METADATA"
   }
 }
+
+resource "google_compute_firewall" "allow_demo_controller_to_caldera" {
+  name        = "allow-demo-controller-to-caldera"
+  description = "Allow the demo controller's Cloud Run service (via Direct VPC egress, tagged) to reach CALDERA's API on control-node."
+
+  network   = google_compute_network.lab.name
+  direction = "INGRESS"
+  priority  = 1000
+
+  source_tags = [
+    "demo-controller-egress"
+  ]
+
+  target_tags = [
+    "control-node"
+  ]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8888"]
+  }
+
+  log_config {
+    metadata = "EXCLUDE_ALL_METADATA"
+  }
+}
