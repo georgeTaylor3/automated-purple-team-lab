@@ -304,3 +304,89 @@ either by seeding fewer/no boilerplate account facts, choosing a
 different starter profile, or accepting that "watch it work through
 housekeeping first" is itself a realistic, honest thing to show a
 visitor about how automated recon actually behaves.
+
+
+## CALDERA Sandcat agents got a new identity on every restart
+
+Every stop/start of a target instance was creating a brand-new CALDERA
+agent record, accumulating dead/untrusted entries in the UI indefinitely.
+
+**First theory, tested and disproven:** assumed Sandcat's identity was
+baked into the compiled binary at download time, so reusing the
+already-downloaded file across boots (instead of re-downloading) would
+preserve identity. Implemented, tested via a real stop/start cycle --
+the binary was correctly reused (confirmed in the boot log), but CALDERA
+still assigned a brand-new paw anyway. Disproven by direct evidence, not
+assumption.
+
+**Actual cause:** Sandcat generates a fresh identity on every process
+*start*, regardless of whether the binary file itself is new or old.
+Identity is a property of the running process's registration handshake
+with the server, not something fixed at compile time.
+
+**Real fix:** Sandcat has a documented `-paw` flag ("Optionally specify a
+PAW on initialization"). Both boot scripts now pass
+`-paw "$(hostname)"` explicitly on every start -- a fixed, deterministic
+identity derived from the instance's own hostname, rather than letting
+CALDERA assign a random one. Verified on both `linux-workstation-target`
+and `web-target`: multiple stop/start cycles now report back as the
+exact same agent every time, confirmed via the Fleet-equivalent CALDERA
+agents API (`GET /api/v2/agents`), not just the UI.
+
+**Lesson:** when a system generates identity/state you don't control,
+check whether it exposes an explicit override before working around it
+indirectly. The binary-reuse approach was a reasonable first guess, but
+testing it honestly (rather than assuming reuse = identity persistence)
+is what caught it being wrong.
+
+## Elastic Agent's real install path differs from where it's downloaded
+
+`sudo /opt/elastic/elastic-agent/elastic-agent status` returned a
+connection error (`.sock: no such file or directory`), suggesting the
+agent wasn't running -- despite Elastic Defend and Fleet enrollment both
+working correctly moments earlier.
+
+**Cause:** `elastic-agent install` copies itself to its own canonical
+system location (`/opt/Elastic/Agent/`, capitalized, a completely
+different path) rather than running from wherever the tarball was
+originally extracted and installed from
+(`/opt/elastic/elastic-agent/`, lowercase -- the path used in this
+project's boot scripts and golden images). The lowercase path holds the
+original installer copy, which is never actually run again after
+installation; the real, live daemon lives at the uppercase path.
+
+**Fix:** check status against the real installed location:
+```
+sudo /opt/Elastic/Agent/elastic-agent status
+```
+
+**Lesson:** confirmed via `ps aux` first, not assumed -- the actual
+running processes' paths (`/opt/Elastic/Agent/data/...`) were the real
+evidence pointing at the correct check command, rather than continuing
+to trust a status command that was silently checking the wrong binary.
+
+## Fleet policy assignment silently determines which integrations run
+
+`web-target`'s Elastic Agent had been enrolled into the *workstation*
+Fleet policy since its original deployment, not the *web-server* policy
+-- despite both being created and the web-server policy having Nginx
+added to it earlier in the project. The agent was simply never assigned
+to the right one, so nginx log data never flowed, with no error
+anywhere pointing at the actual cause.
+
+**Fix:** reassigned the agent to the correct policy directly in Fleet's
+UI (Agents -> agent -> Assign to new policy). Took effect live, no
+reboot or reinstall needed.
+
+**Momentary confusion during the fix:** `elastic-agent status`
+immediately after reassignment showed `DEGRADED` on the Defend
+component, specifically `"Applied policy {...}"`. This resolved on its
+own within a minute or two and did not indicate a real problem --
+confirmed by checking the actual functional outcome (real nginx data
+landing in Elasticsearch) rather than continuing to chase the status
+label itself.
+
+**Lesson:** a correctly-configured integration on a policy does nothing
+if the actual agent was never assigned to that policy in the first
+place. Worth checking which policy an agent is actually on as a first
+step, not just whether the policy itself is configured correctly.
