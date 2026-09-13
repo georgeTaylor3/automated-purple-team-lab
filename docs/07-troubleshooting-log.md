@@ -390,3 +390,85 @@ label itself.
 if the actual agent was never assigned to that policy in the first
 place. Worth checking which policy an agent is actually on as a first
 step, not just whether the policy itself is configured correctly.
+
+## CALDERA's --insecure flag bypasses login authentication entirely
+
+While preparing to store CALDERA's `red` credential in Secret Manager
+for the demo controller's `/attack` endpoint, found that
+authentication was not actually being enforced at all -- any username
+and any password, including a deliberately wrong one, returned the
+same successful `302` from `/enter`.
+
+**Confirmed:**
+```
+curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:8888/enter \
+  -d "username=red&password=totallywrongpassword12345"
+```
+Returned `302`, identical to a genuine correct login.
+
+**Root cause:** `docker/caldera/Dockerfile`'s runtime `CMD` has
+`--insecure`:
+```
+CMD ["/opt/caldera/venv/bin/python3", "server.py", "--insecure"]
+```
+This flag was there since the first CALDERA container
+-- meaning authentication has never
+actually been enforced!!, for the whole life of this project...
+
+**Why now** the demo controller's `/attack`
+endpoint (Increment 2, in progress) reaches CALDERA through a new
+Cloud Run VPC egress path -- a less-controlled access route than IAP. 
+Need to close now.
+
+**A second, related finding:** every credential in `conf/default.yml`
+(the two API keys, and all three user account passwords -- red, blue,
+and the admin sub-user under the red group) were
+random(tm) argon2 hashes 
+-- not hashes of the literal word "admin" as commonly seen in CALDERA's own documented
+defaults. 
+-- This likely happened because the container's first boot never had
+a `local.yml` override present, so CALDERA's own config generator
+created random values and then hashed. fixing the --insecure flag would
+have likely caused a hard lockout, since none of the stored password hashes
+correspond to any password anyone actually knows.
+
+**Interim fix completed tonight, not yet  fully enforced:**
+- Created `conf/local.yml` on the persistent `caldera-conf` named
+  volume (copy of `default.yml`, per CALDERA's own documented
+  override pattern), with genuinely new, known passwords set for
+  red, blue, and the admin sub-user (via targeted `sed` replacement
+  of each specific hash, confirmed correct by re-reading the file
+  after each change)
+- Stored red's new password in Secret Manager
+  (`caldera-red-password`), granted to `demo-controller-sa` only --
+  the one identity with an actual, current need to read it. Blue and
+  admin's new passwords deliberately NOT stored in Secret Manager,
+  since neither has any automated consumer yet; kept in a personal
+  password manager instead, matching the project's standing rule that
+  Secret Manager holds only credentials with a real, current service
+  consumer, never stored speculatively
+- The server itself has NOT yet been restarted(im sleepy), and --insecure has
+  NOT yet been removed from the Dockerfile -- ...
+  vulnerability described above is technically still live as of this
+  entry. Low practical risk overnight (control-node is reachable only
+  via IAP tunnel and the one tagged Cloud Run firewall path, not the
+  open internet).
+
+**Next Time**
+1. Remove `--insecure` from the Dockerfile's runtime `CMD` line only
+   (leave the earlier build-time UI-asset-generation step's own
+   `--insecure --build` flag untouched -- unrelated, never serves
+   live traffic)
+2. Rebuild the CALDERA image, redeploy `control-node`
+3. Confirm the local.yml credentials set tonight persist correctly
+   through the rebuild (conf/ is a named volume, expected to survive)
+4. login with the new red password, and separately confirm a
+   wrong password is now genuinely rejected -- the actual proof the
+   fix worked, not just that the server restarted cleanly
+
+**Lesson:** a flag like `--insecure` can be "recommended" or "part of the temaplte"
+but was meant to be replaced...
+indefinitely if nothing ever specifically depends on the security
+property it disables -- worth periodically auditing "what would
+happen if a stranger tried this right now," not just "does it work
+for me via my own trusted access path."
