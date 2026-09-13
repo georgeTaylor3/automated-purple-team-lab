@@ -43,3 +43,9 @@ variable "fleet_enrollment_token" {
   type        = string
   sensitive   = true
 }
+
+variable "billing_account_id" {
+  description = "GCP Billing Account ID, supplied via TF_VAR_billing_account_id, never committed."
+  type        = string
+  sensitive   = true
+}

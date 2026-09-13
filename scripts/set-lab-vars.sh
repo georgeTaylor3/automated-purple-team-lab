@@ -31,11 +31,16 @@ export MY_ACCOUNT
 echo "Fetching TF_VAR_fleet_enrollment_token from Secret Manager..."
 TF_VAR_fleet_enrollment_token=$(gcloud secrets versions access latest --secret=fleet-enrollment-token --project="$PROJECT_ID" 2>/dev/null || echo "")
 export TF_VAR_fleet_enrollment_token
- 
-echo "PROJECT_ID=$PROJECT_ID"
-echo "PACKER_DEPLOYER_SA=$PACKER_DEPLOYER_SA"
-echo "PACKER_BUILDER_SA=$PACKER_BUILDER_SA"
-echo "TERRAFORM_DEPLOYER_SA=$TERRAFORM_DEPLOYER_SA"
-echo "CONTROL_NODE_SA=$CONTROL_NODE_SA"
-echo "MY_ACCOUNT=$MY_ACCOUNT"
+
+echo "Fetching TF_VAR_billing_account_id from Secret Manager..."
+TF_VAR_billing_account_id=$(gcloud secrets versions access latest --secret=billing-account-id --project="$PROJECT_ID" 2>/dev/null || echo "")
+export TF_VAR_billing_account_id
+
+echo "PROJECT_ID...done"
+echo "PACKER_DEPLOYER_SA...done"
+echo "PACKER_BUILDER_SA...done"
+echo "TERRAFORM_DEPLOYER_SA...done"
+echo "CONTROL_NODE_SA...done"
+echo "MY_ACCOUNT...done"
+echo "TF_VAR_billing_account_id=$([ -n "$TF_VAR_billing_account_id" ] && echo '(set)' || echo '(NOT SET -- secret missing or inaccessible)')"
 echo "TF_VAR_fleet_enrollment_token=$([ -n "$TF_VAR_fleet_enrollment_token" ] && echo '(set)' || echo '(NOT SET -- secret missing or inaccessible)')"
