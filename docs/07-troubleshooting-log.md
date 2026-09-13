@@ -472,3 +472,61 @@ indefinitely if nothing ever specifically depends on the security
 property it disables -- worth periodically auditing "what would
 happen if a stranger tried this right now," not just "does it work
 for me via my own trusted access path."
+
+## Git commit signing failed: "agent refused operation" (GNOME Keyring vs FIDO2)
+
+`git commit -S` started failing with `Couldn't sign message (signer):
+agent refused operation?` -- despite the resident YubiKey signing key
+(set up several sessions ago) working correctly for many prior
+commits.
+
+**Diagnosis, ruling out causes in order:**
+1. `ssh-add -l` confirmed the key was genuinely loaded/registered.
+2. Reproduced the identical failure completely outside git, via raw
+   `ssh-keygen -Y sign`, confirming this wasn't a git-specific config
+   issue.
+3. `echo $SSH_AUTH_SOCK` showed `/run/user/1000/keyring/ssh` -- GNOME
+   Keyring's own SSH agent implementation, not standard OpenSSH
+   `ssh-agent`.
+
+**Root cause:** GNOME Keyring's SSH agent has a well-documented 
+limitation with FIDO2 security keys specifically when a
+PIN is required (`-O verify-required`, which this key was created
+with) -- it cannot properly relay the touch+PIN confirmation flow the
+way real OpenSSH `ssh-agent` can, and fails immediately with this
+exact error rather than prompting or timing out. Confirmed via
+multiple independent sources describing the identical symptom.
+
+**Why this worked previously and only broke now:** not fully
+determined -- possibly a session/login change that switched which
+agent `SSH_AUTH_SOCK` pointed at, or GNOME Keyring's handling of this
+specific key type was always marginal and this is the first time it
+genuinely failed rather than happening to succeed.
+
+**Immediate fix, confirmed working:**
+```
+unset SSH_AUTH_SOCK
+git commit -S
+```
+Unsetting the variable forces git/ssh-keygen to talk to the hardware
+key directly rather than through GNOME Keyring's broken relay. Needs
+to be done in the current shell before signing.
+
+**A secondary issue while testing, unrelated to the root cause:**
+a manual `ssh-keygen -Y sign ... /dev/stdin` test failed separately
+with `ssh_askpass: exec(/usr/bin/ssh-askpass): No such file or
+directory` -- piping input via `echo | ...` leaves no free terminal
+for the key's own passphrase prompt, so it falls back to a GUI askpass
+tool that wasn't installed. Fixed with:
+```
+sudo apt install ssh-askpass-gnome
+```
+This would have blocked real `git commit -S` calls too, not just the
+manual test, since git's own signing flow pipes data the same way.
+
+**Not yet done -- worth doing properly next session:** the permanent
+fix, per every source describing this issue, is disabling GNOME
+Keyring's SSH agent component entirely and using real `ssh-agent`
+instead, so `unset SSH_AUTH_SOCK` doesn't need to be remembered every
+session. this is a reliable workaround, not the root cause
+resolution.
