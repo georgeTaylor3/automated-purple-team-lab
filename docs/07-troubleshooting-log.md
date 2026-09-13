@@ -530,3 +530,26 @@ Keyring's SSH agent component entirely and using real `ssh-agent`
 instead, so `unset SSH_AUTH_SOCK` doesn't need to be remembered every
 session. this is a reliable workaround, not the root cause
 resolution.
+
+CALDERA login does not validate credentials, even without --insecure
+
+Removed --insecure (previous session's finding), rebuilt and redeployed CALDERA. A wrong password still returns 302 -- identical to before the fix.
+
+Checked, in order:
+
+docker inspect caldera --format='{{.Config.Cmd}}' confirms --insecure is gone from the running command.
+Server log states "Using main config from conf/local.yml" -- confirms the file with the new, known passwords is loading, not a cached default.yml.
+Only one caldera container is running, freshly recreated by this deploy.
+Build is current (commit from Aug 27 2026), not stale.
+
+All four check out. A wrong password still authenticates.
+
+Not a misconfiguration -- matches a known upstream issue. Multiple GitHub discussions on mitre/caldera and apache/caldera report the same symptom across different setups and versions: login succeeds regardless of password. No confirmed fix found. Likely a defect in app/service/auth_svc.py, not something fixable from this project's config.
+
+Security posture: network-level access control -- IAP tunnel for admin use, the tagged Cloud Run firewall rule for the demo controller -- is the actual enforced boundary, and always has been. CALDERA's login screen is secondary and currently unreliable; treat it as such, not as a control to depend on.
+
+Not pursued further tonight:
+
+Check CALDERA's GitHub issues for this exact commit/version
+Read auth_svc.py directly rather than treat it as a black box
+Consider an older stable release instead of tracking master
