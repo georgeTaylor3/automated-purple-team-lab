@@ -25,7 +25,7 @@ import os
 import uuid
 from datetime import datetime, timezone
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from google.cloud import firestore
 
 app = Flask(__name__)
@@ -133,6 +133,142 @@ def claim():
         return jsonify({"claimed": False, "reason": "lab already in use"}), 409
 
     return jsonify({"claimed": True, "session_id": session_id})
+
+# -----------------------------------------------------------------------
+# /attack -- Increment 2.
+# -----------------------------------------------------------------------
+
+import requests
+from google.cloud import secretmanager
+
+# Visitor-supplied scenario names map to real, pre-approved CALDERA
+# adversary IDs. Visitor input is only ever used as a dictionary key --
+# it never reaches CALDERA directly. Anything not in this dict is
+# rejected before any network call happens.
+APPROVED_SCENARIOS = {
+    "discovery": "0f4c3c67-845e-49a0-927e-90ed33c044e0",
+    "juice-shop-sqli": "77f2e364-441f-4b19-8a53-d56640123bc5",
+}
+
+CALDERA_URL = "http://10.60.10.39:8888"
+ATTACK_COOLDOWN_SECONDS = 60
+
+_secret_client = secretmanager.SecretManagerServiceClient()
+_cached_caldera_password = None
+
+
+def get_caldera_password():
+    # Cached at the module level -- fetched once per Cloud Run
+    # instance's cold start, reused across warm invocations. Avoids a
+    # Secret Manager round-trip on every single request.
+    global _cached_caldera_password
+    if _cached_caldera_password is None:
+        project_id = os.environ["PROJECT_ID"]
+        name = f"projects/{project_id}/secrets/caldera-red-password/versions/latest"
+        response = _secret_client.access_secret_version(name=name)
+        _cached_caldera_password = response.payload.data.decode("UTF-8")
+    return _cached_caldera_password
+
+
+@app.route("/attack", methods=["POST"])
+def attack():
+    data = request.get_json(silent=True)
+    if not data or "session_id" not in data or "scenario" not in data:
+        return jsonify({"error": "session_id and scenario required"}), 400
+
+    session_id = data["session_id"]
+    scenario = data["scenario"]
+
+    if scenario not in APPROVED_SCENARIOS:
+        return jsonify({"error": "unknown scenario"}), 400
+    adversary_id = APPROVED_SCENARIOS[scenario]
+
+    # Transaction 1: validate the session, check the cooldown, and
+    # reserve the slot (write last_attack_at) BEFORE the slow CALDERA
+    # call. This closes the double-click race: two near-simultaneous
+    # requests can't both pass the cooldown check, since the first one
+    # to commit the transaction updates last_attack_at immediately,
+    # and Firestore forces the second to retry against that new value.
+    @firestore.transactional
+    def try_reserve(transaction):
+        snapshot = STATE_DOC.get(transaction=transaction)
+        if not snapshot.exists:
+            return "no_session"
+        current = snapshot.to_dict()
+
+        if current.get("session_id") != session_id:
+            return "invalid_session"
+
+        last_attack = current.get("last_attack_at")
+        if last_attack:
+            elapsed = (
+                datetime.now(timezone.utc) - datetime.fromisoformat(last_attack)
+            ).total_seconds()
+            if elapsed < ATTACK_COOLDOWN_SECONDS:
+                return f"cooldown:{int(ATTACK_COOLDOWN_SECONDS - elapsed)}"
+
+        now = utcnow_iso()
+        update = {"last_attack_at": now}
+        if current.get("first_attack_at") is None:
+            update["first_attack_at"] = now
+        transaction.update(STATE_DOC, update)
+        return "ok"
+
+    reserve_result = try_reserve(db.transaction())
+
+    if reserve_result in ("no_session", "invalid_session"):
+        return jsonify({"error": "invalid or expired session"}), 400
+    if reserve_result.startswith("cooldown:"):
+        wait_seconds = reserve_result.split(":")[1]
+        return jsonify({
+            "error": f"please wait {wait_seconds}s before launching another attack"
+        }), 429
+
+    # Real CALDERA call -- deliberately outside any Firestore
+    # transaction. Transactions should stay fast and pure; a slow
+    # external network call inside one risks unnecessary retries or
+    # timeouts.
+    caldera_session = requests.Session()
+    caldera_password = get_caldera_password()
+
+    caldera_session.post(
+        f"{CALDERA_URL}/enter",
+        data={"username": "red", "password": caldera_password},
+        timeout=10,
+    )
+
+    launch_resp = caldera_session.post(
+        f"{CALDERA_URL}/api/v2/operations",
+        json={
+            "name": f"demo-{scenario}-{uuid.uuid4().hex[:8]}",
+            "adversary": {"adversary_id": adversary_id},
+            "group": "red",
+            "state": "running",
+            "autonomous": 1,
+        },
+        timeout=15,
+    )
+
+    if launch_resp.status_code not in (200, 201):
+        return jsonify({"error": "failed to launch attack"}), 500
+
+    operation_id = launch_resp.json().get("id")
+
+    # Transaction 2: record the successful launch, now that we have a
+    # real operation ID to store.
+    @firestore.transactional
+    def record_attack(transaction):
+        transaction.update(STATE_DOC, {
+            "attacks": firestore.ArrayUnion([{
+                "scenario": scenario,
+                "operation_id": operation_id,
+                "launched_at": utcnow_iso(),
+            }])
+        })
+
+    record_attack(db.transaction())
+
+    return jsonify({"launched": True, "operation_id": operation_id})
 
 
 if __name__ == "__main__":
