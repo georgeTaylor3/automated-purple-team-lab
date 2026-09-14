@@ -155,11 +155,8 @@ else
   echo "Existing Sandcat binary found -- reusing."
 fi
 
-# Fixed, self-chosen paw derived from this instance's own hostname,
-# passed identically on every boot -- no reliance on CALDERA's
-# randomly-assigned identity or on parsing it back out of a log file.
-SANDCAT_PAW=$(hostname)
-echo "Starting Sandcat with fixed paw: $SANDCAT_PAW"
-sudo nohup "$SANDCAT_BIN" -server http://10.60.10.39:8888 -group red -paw "$SANDCAT_PAW" > /var/log/sandcat.log 2>&1 &
+# randomly-assigned identity
+echo "Starting Sandcat"
+sudo nohup "$SANDCAT_BIN" -server http://10.60.10.39:8888 -group webserver-red > /var/log/sandcat.log 2>&1 &
 echo "Caldera Agent running in background"
 echo "-------------------------------------------"
