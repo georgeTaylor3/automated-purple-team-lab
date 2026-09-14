@@ -146,8 +146,14 @@ from google.cloud import secretmanager
 # it never reaches CALDERA directly. Anything not in this dict is
 # rejected before any network call happens.
 APPROVED_SCENARIOS = {
-    "discovery": "0f4c3c67-845e-49a0-927e-90ed33c044e0",
-    "juice-shop-sqli": "77f2e364-441f-4b19-8a53-d56640123bc5",
+    "discovery": {
+        "adversary_id": "0f4c3c67-845e-49a0-927e-90ed33c044e0",
+        "group": "workstation-red",
+    },
+    "juice-shop-sqli": {
+        "adversary_id": "77f2e364-441f-4b19-8a53-d56640123bc5",
+        "group": "workstation-red",
+    },
 }
 
 CALDERA_URL = "http://10.60.10.39:8888"
@@ -181,7 +187,9 @@ def attack():
 
     if scenario not in APPROVED_SCENARIOS:
         return jsonify({"error": "unknown scenario"}), 400
-    adversary_id = APPROVED_SCENARIOS[scenario]
+    scenario_config = APPROVED_SCENARIOS[scenario]
+    adversary_id = scenario_config["adversary_id"]
+    caldera_group = scenario_config["group"]
 
     # Transaction 1: validate the session, check the cooldown, and
     # reserve the slot (write last_attack_at) BEFORE the slow CALDERA
@@ -242,7 +250,7 @@ def attack():
         json={
             "name": f"demo-{scenario}-{uuid.uuid4().hex[:8]}",
             "adversary": {"adversary_id": adversary_id},
-            "group": "red",
+            "group": caldera_group,
             "state": "running",
             "autonomous": 1,
         },
