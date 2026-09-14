@@ -553,3 +553,52 @@ Not pursued further tonight:
 Check CALDERA's GitHub issues for this exact commit/version
 Read auth_svc.py directly rather than treat it as a black box
 Consider an older stable release instead of tracking master
+
+## Fixed-paw Sandcat identity goes permanently untrusted after a stop/start
+
+An agent with a stable, hostname-based paw (see prior session's fix)
+showed `trusted: false` in CALDERA after a normal instance stop/start,
+despite the agent process running correctly and beaconing.
+
+**Confirmed:**
+- Agent created four days earlier (`created` timestamp unchanged
+  across many stop/starts -- the identity-stability fix is working as
+  designed).
+- Process genuinely running (`ps aux` showed the real PID matching the
+  agent record).
+- Only one recorded link/action in the agent's history, from the
+  original creation -- no activity since, despite a recent `last_seen`.
+- An operation launched against it finished instantly with zero steps
+  -- consistent with the planner skipping untrusted agents entirely.
+
+**Cause:** CALDERA agents default to `trusted: true` at creation and
+flip to `false` via a server-side Untrusted Timer once an agent goes
+silent longer than a configured threshold (commonly ~100-300s based
+on real-world reports). Every deliberate instance stop (done for cost,
+every session) leaves the agent silent for hours -- far past this
+threshold -- triggering the flip.
+
+**The real issue: trust does not appear to reliably recover once
+lost, even when beaconing resumes normally.** A CALDERA pull request
+(mitre/caldera#443) that would have added trust-recovery logic was
+closed without merging. This project's own evidence is consistent with
+that: the agent kept beaconing (recent `last_seen`) but stayed
+untrusted regardless.
+
+**This reveals a real tradeoff in the fixed-paw design, not just a
+one-off glitch:** reusing the same identity across stop/starts (to
+avoid duplicate agent clutter) also means inheriting that identity's
+stuck-untrusted status every session, since trust state persists with
+the identity rather than resetting.
+
+**Fix used tonight:** delete the stuck agent
+(`DELETE /api/v2/agents/{paw}`), kill the local process, restart it
+with the same `-paw` value. Re-registers as a genuinely new agent
+object internally, defaulting fresh to `trusted: true`.
+
+**Open question, not resolved:** whether to keep the fixed-paw
+approach (accepting a manual trust-reset step most sessions) or revert
+to letting Sandcat generate a fresh identity each boot (accepting
+agent-list clutter, but avoiding this trust problem entirely). Worth a
+deliberate decision next time this comes up, not defaulting to either
+silently.
