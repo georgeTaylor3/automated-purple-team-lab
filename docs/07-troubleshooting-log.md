@@ -602,3 +602,35 @@ to letting Sandcat generate a fresh identity each boot (accepting
 agent-list clutter, but avoiding this trust problem entirely). Worth a
 deliberate decision next time this comes up, not defaulting to either
 silently.
+
+## Group-based scenario scoping replaces fixed-paw identity
+
+Following the trust-timer finding from the prior session: reverted
+fixed-`-paw` Sandcat identity, replaced with CALDERA's own `-group`
+flag to control which scenarios run on which box.
+
+**Change:** each target now registers into a distinct group at boot
+(`workstation-red`, `webserver-red`) instead of both sharing `red`.
+`APPROVED_SCENARIOS` in `main.py` now maps each scenario to both an
+adversary ID and a required group; `/attack` launches against that
+specific group, not a shared one.
+
+**Verified:**
+- Fresh boot after the change: both agents registered with correct
+  groups, `trusted: True` (confirmed via `/api/v2/agents`).
+- `/attack` with `juice-shop-sqli` launched an operation scoped to
+  `workstation-red` specifically. Operation's `host_group` contained
+  exactly one member -- the workstation's real paw, trusted -- and did
+  not include `web-target`. Group scoping works as designed.
+
+**New finding, not yet resolved:** the operation's `chain` length was
+`0` despite a correctly-scoped, trusted, eligible agent being present.
+Operation showed `state: finished` immediately, no steps executed.
+Distinct from the earlier trust-timer issue -- trust is confirmed
+fine here.
+
+**Not yet checked:**
+- Whether the adversary profile still correctly references the
+  ability (`GET /api/v2/adversaries`)
+- The agent's reported platform/executors/privilege
+  (`GET /api/v2/agents`) against what the ability's executor requires
