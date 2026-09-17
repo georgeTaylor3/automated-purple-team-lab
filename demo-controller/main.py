@@ -151,7 +151,7 @@ APPROVED_SCENARIOS = {
         "group": "workstation-red",
     },
     "juice-shop-sqli": {
-        "adversary_id": "77f2e364-441f-4b19-8a53-d56640123bc5",
+        "adversary_id": "14db9072-5406-4645-ba34-f7d9a25b1fd5",
         "group": "workstation-red",
     },
 }
