@@ -11,7 +11,7 @@ resource "google_compute_instance" "control_node" {
   depends_on = [
     google_project_iam_member.terraform_deployer_compute_instance_manager
   ]
-  tags = ["control-node"]
+  tags         = ["control-node"]
   name         = "control-node"
   project      = var.project_id
   zone         = var.zone
@@ -25,11 +25,11 @@ resource "google_compute_instance" "control_node" {
     }
   }
 
-network_interface {
-  subnetwork = google_compute_subnetwork.control.name
-  network_ip = google_compute_address.control_node_internal.address
-  # no external IP
-}
+  network_interface {
+    subnetwork = google_compute_subnetwork.control.name
+    network_ip = google_compute_address.control_node_internal.address
+    # no external IP
+  }
 
   service_account {
     email  = local.control_node_service_account

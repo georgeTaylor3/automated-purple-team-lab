@@ -49,7 +49,7 @@ resource "google_project_iam_custom_role" "terraform_compute_instance_manager" {
     "compute.zones.get",
     "compute.machineTypes.get",
     "compute.globalOperations.get",
-    "compute.zoneOperations.get",  
+    "compute.zoneOperations.get",
   ]
 }
 
