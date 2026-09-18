@@ -1,8 +1,8 @@
 locals {
-  control_node_service_account = "control-node-sa@${var.project_id}.iam.gserviceaccount.com"
-  web_target_service_account      = "web-target-sa@${var.project_id}.iam.gserviceaccount.com"
-  workstation_service_account     = "workstation-target-sa@${var.project_id}.iam.gserviceaccount.com"
-  packer_builder_service_account  = "packer-builder-sa@${var.project_id}.iam.gserviceaccount.com"
+  control_node_service_account   = "control-node-sa@${var.project_id}.iam.gserviceaccount.com"
+  web_target_service_account     = "web-target-sa@${var.project_id}.iam.gserviceaccount.com"
+  workstation_service_account    = "workstation-target-sa@${var.project_id}.iam.gserviceaccount.com"
+  packer_builder_service_account = "packer-builder-sa@${var.project_id}.iam.gserviceaccount.com"
 }
 
 resource "google_compute_firewall" "allow_target_to_caldera_c2_ingress" {

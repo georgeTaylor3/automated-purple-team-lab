@@ -36,7 +36,7 @@ resource "google_compute_instance" "web_target" {
   metadata = {
     fleet-url              = "https://10.60.10.39:8220"
     fleet-enrollment-token = var.fleet_enrollment_token
-    startup-script          = file("${path.module}/../scripts/web-target-setup.sh")
+    startup-script         = file("${path.module}/../scripts/web-target-setup.sh")
   }
 
   labels = {
