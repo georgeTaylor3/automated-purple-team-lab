@@ -117,8 +117,21 @@ else
   echo "Existing Sandcat binary found -- reusing."
 fi
 
-# randomly-assigned identity
+# starting sandcat agent
 echo "Starting Sandcat"
-sudo nohup "$SANDCAT_BIN" -server http://10.60.10.39:8888 -group workstation-red > /var/log/sandcat.log 2>&1 &
+
+if sudo bash -c "nohup $SANDCAT_BIN -server http://10.60.10.39:8888 -group workstation-red > /var/log/sandcat.log 2>&1 &"; then
+  sleep 2
+  if pgrep -f "$SANDCAT_BIN" > /dev/null; then
+    echo "Caldera Agent running in background"
+  else
+    echo "ERROR: Sandcat process not found after starting -- check /var/log/sandcat.log"
+    exit 1
+  fi
+else
+  echo "ERROR: Failed to start Caldera Sandcat agent"
+  exit 1
+fi
+
 echo "Caldera Agent running in background"
 echo "---------------------------------------------------"
