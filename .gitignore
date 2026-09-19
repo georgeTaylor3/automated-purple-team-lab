@@ -70,7 +70,6 @@ caldera-local*
 # Local security-scanner configuration
 # ---------------------------------------------------------------------------
 
-security-scan-patterns.local
 
 
 # ---------------------------------------------------------------------------
@@ -131,3 +130,4 @@ shared/lab-vars.json
 .env
 docs/rbac-baseline.json
 docs/rbac-baseline.json.sig
+scripts/security/local-patterns.gitignored

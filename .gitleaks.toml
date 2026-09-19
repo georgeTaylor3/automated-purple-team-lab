@@ -1,0 +1,19 @@
+title = "gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "gcp-project-id"
+description = "GCP-style project ID"
+regex = '''purple-lab-\d+'''
+
+[[rules]]
+id = "gcp-service-account"
+description = "GCP service account email"
+regex = '''[a-z0-9-]+@[a-z0-9-]+\.iam\.gserviceaccount\.com'''
+
+[[rules]]
+id = "local-home-path"
+description = "Absolute home directory path"
+regex = '''/home/[A-Za-z0-9._-]+'''
