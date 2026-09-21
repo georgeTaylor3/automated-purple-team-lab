@@ -62,4 +62,4 @@ RUN timeout 180s /opt/caldera/venv/bin/python3 server.py --insecure --build; \
 
 EXPOSE 8888 7010 7011 7012 2222 8022
 
-CMD ["/opt/caldera/venv/bin/python3", "server.py", --insecure]
+CMD ["/opt/caldera/venv/bin/python3", "server.py", "--insecure"]
