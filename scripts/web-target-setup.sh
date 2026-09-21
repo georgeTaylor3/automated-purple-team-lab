@@ -158,7 +158,7 @@ fi
 # Start Sandcat
 echo "Starting Sandcat"
 
-if sudo bash -c "nohup $SANDCAT_BIN -server http://10.60.10.39:8888 -group workstation-red > /var/log/sandcat.log 2>&1 &"; then
+if sudo bash -c "nohup $SANDCAT_BIN -server http://10.60.10.39:8888 -group webserver-red > /var/log/sandcat.log 2>&1 &"; then
   sleep 2
   if pgrep -f "$SANDCAT_BIN" > /dev/null; then
     echo "Caldera Agent running in background"
