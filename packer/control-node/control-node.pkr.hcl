@@ -131,6 +131,11 @@ build {
     ]
   }
 
+  provisioner "file" {
+    source      = "${path.root}/../../scripts/caldera-agent-cleanup.sh"
+    destination = "/tmp/caldera-agent-cleanup.sh"
+  }
+
   provisioner "shell" {
 
     inline = [
@@ -198,9 +203,24 @@ build {
       "fi",
       "",
       "docker compose up -d elasticsearch kibana caldera fleet-server",
+      "",
+      "echo \"Waiting for CALDERA to accept requests...\"",
+      "for i in $(seq 1 30); do",
+      "  if curl -s -o /dev/null http://localhost:8888; then",
+      "    break",
+      "  fi",
+      "  sleep 5",
+      "done",
+      "",
+      "echo \"Running CALDERA agent cleanup...\"",
+      "/usr/local/bin/caldera-agent-cleanup.sh || echo \"Cleanup failed or found nothing to clean -- non-fatal.\"",
+      "",
       "echo \"purple-lab-deploy.sh complete.\"",
+
       "SCRIPT",
 
+      "sudo mv /tmp/caldera-agent-cleanup.sh /usr/local/bin/caldera-agent-cleanup.sh",
+      "sudo chmod +x /usr/local/bin/caldera-agent-cleanup.sh",
       "sudo chmod +x /usr/local/bin/purple-lab-deploy.sh",
 
       "cat <<'UNIT' | sudo tee /etc/systemd/system/purple-lab-deploy.service",

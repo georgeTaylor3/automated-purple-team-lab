@@ -27,7 +27,10 @@ export CONTROL_NODE_SA
  
 MY_ACCOUNT=$(gcloud config get-value account)
 export MY_ACCOUNT
- 
+
+CALDERA_RED="$(gcloud secrets versions access latest --secret=caldera-red-password --project="${PROJECT_ID}")"
+export CALDERA_RED
+
 echo "Fetching TF_VAR_fleet_enrollment_token from Secret Manager..."
 TF_VAR_fleet_enrollment_token=$(gcloud secrets versions access latest --secret=fleet-enrollment-token --project="$PROJECT_ID" 2>/dev/null || echo "")
 export TF_VAR_fleet_enrollment_token
@@ -36,11 +39,12 @@ echo "Fetching TF_VAR_billing_account_id from Secret Manager..."
 TF_VAR_billing_account_id=$(gcloud secrets versions access latest --secret=billing-account-id --project="$PROJECT_ID" 2>/dev/null || echo "")
 export TF_VAR_billing_account_id
 
-echo "PROJECT_ID...done"
-echo "PACKER_DEPLOYER_SA...done"
-echo "PACKER_BUILDER_SA...done"
+echo "PROJECT_ID..............done"
+echo "PACKER_DEPLOYER_SA......done"
+echo "PACKER_BUILDER_SA.......done"
 echo "TERRAFORM_DEPLOYER_SA...done"
-echo "CONTROL_NODE_SA...done"
-echo "MY_ACCOUNT...done"
+echo "CONTROL_NODE_SA.........done"
+echo "CALDERA_RED.............done"
+echo "MY_ACCOUNT..............done"
 echo "TF_VAR_billing_account_id=$([ -n "$TF_VAR_billing_account_id" ] && echo '(set)' || echo '(NOT SET -- secret missing or inaccessible)')"
 echo "TF_VAR_fleet_enrollment_token=$([ -n "$TF_VAR_fleet_enrollment_token" ] && echo '(set)' || echo '(NOT SET -- secret missing or inaccessible)')"
