@@ -19,11 +19,10 @@ CALDERA_URL="http://localhost:8888"
 COOKIE_FILE=$(mktemp)
 trap 'rm -f "$COOKIE_FILE"' EXIT
 
-#PROJECT_ID=$(curl -s -H "Metadata-Flavor: Google" \
-#  "http://metadata.google.internal/computeMetadata/v1/project/project-id")
-#CALDERA_RED_PASSWORD=$(gcloud secrets versions access latest \
-#  --secret=caldera-red-password --project="$PROJECT_ID")
-CALDERA_RED_PASSWORD="admin"
+PROJECT_ID=$(curl -s -H "Metadata-Flavor: Google" \
+  "http://metadata.google.internal/computeMetadata/v1/project/project-id")
+CALDERA_RED_PASSWORD=$(gcloud secrets versions access latest \
+  --secret=caldera-red-password --project="$PROJECT_ID")
 
 curl -s -c "$COOKIE_FILE" -X POST "$CALDERA_URL/enter" \
   -d "username=red&password=$CALDERA_RED_PASSWORD" > /dev/null
