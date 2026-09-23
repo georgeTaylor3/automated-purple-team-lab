@@ -218,7 +218,7 @@ build {
       "done",
       "",
       "echo \"Extracting fresh CALDERA red password from boot log...\"",
-      "CALDERA_FRESH_PASSWORD=$(docker compose logs caldera 2>&1 | awk '",
+      "CALDERA_FRESH_PASSWORD=$(docker compose logs caldera 2>&1 | sed -E 's/^caldera +\\| ?//' | awk '",
       "  /USERNAME: red/ { in_red=1 }",
       "  in_red && /PASSWORD:/ { in_pw=1; next }",
       "  in_red && in_pw && /API_TOKEN:/ { in_pw=0; in_red=0 }",
