@@ -136,6 +136,11 @@ build {
     destination = "/tmp/caldera-agent-cleanup.sh"
   }
 
+  provisioner "file" {
+    source      = "${path.root}/../../scripts/ensure-caldera-abilities.sh"
+    destination = "/tmp/ensure-caldera-abilities.sh"
+  }
+
   provisioner "shell" {
 
     inline = [
@@ -212,14 +217,34 @@ build {
       "  sleep 5",
       "done",
       "",
+      "echo \"Extracting fresh CALDERA red password from boot log...\"",
+      "CALDERA_FRESH_PASSWORD=$(docker compose logs caldera 2>&1 | awk '",
+      "  /USERNAME: red/ { in_red=1 }",
+      "  in_red && /PASSWORD:/ { in_pw=1; next }",
+      "  in_red && in_pw && /API_TOKEN:/ { in_pw=0; in_red=0 }",
+      "  in_pw { gsub(/[[:space:]]/, \"\"); printf \"%s\", $0 }",
+      "')",
+      "",
+      "if [ -z \"$CALDERA_FRESH_PASSWORD\" ]; then",
+      "  echo \"WARNING: could not extract fresh CALDERA password from log -- Secret Manager not updated.\"",
+      "else",
+      "  echo -n \"$CALDERA_FRESH_PASSWORD\" | gcloud secrets versions add caldera-red-password --data-file=-",
+      "  echo \"Fresh CALDERA red password published to Secret Manager.\"",
+      "fi",
+      "",
       "echo \"Running CALDERA agent cleanup...\"",
       "/usr/local/bin/caldera-agent-cleanup.sh || echo \"Cleanup failed or found nothing to clean -- non-fatal.\"",
+      "",
+      "echo \"Ensuring CALDERA abilities/adversaries are present...\"",
+      "/usr/local/bin/ensure-caldera-abilities.sh || echo \"Ability provisioning failed -- non-fatal.\"",
       "",
       "echo \"purple-lab-deploy.sh complete.\"",
 
       "SCRIPT",
 
       "sudo mv /tmp/caldera-agent-cleanup.sh /usr/local/bin/caldera-agent-cleanup.sh",
+      "sudo mv /tmp/ensure-caldera-abilities.sh /usr/local/bin/ensure-caldera-abilities.sh",
+      "sudo chmod +x /usr/local/bin/ensure-caldera-abilities.sh",
       "sudo chmod +x /usr/local/bin/caldera-agent-cleanup.sh",
       "sudo chmod +x /usr/local/bin/purple-lab-deploy.sh",
 
