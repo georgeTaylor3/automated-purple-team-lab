@@ -832,3 +832,23 @@ sessions run data. All configs are open to view (in an entperise these policies 
 woudl certianly need to be restricted) for anyone who wants to see how this lab is configured
 All config drift becomes a git diff.. aka to commit config change (new/different CALDDERA ability,
 new/different elastic agent configuration/ integration) must be chanbge dthorugh git.
+
+**Compliance mapping:** this architecture satisfies NIST SP 800-53
+Rev 5 SI-14 (Non-persistence) -- *"Implement non-persistent [system
+components and services] that are initiated in a known state and
+terminated upon end of session of use"* -- and SI-14(2)
+(Non-persistent Information) -- *"Refresh [information] [on a defined
+frequency], generate [information] on demand; and delete information
+when no longer needed."* It also satisfies ISO/IEC 27001:2022 Annex A
+control A.8.9 (Configuration Management) -- *"Configurations,
+including security configurations, of hardware, software, services
+and networks should be established, documented, implemented,
+monitored and reviewed"* -- and A.8.10 (Information Deletion),
+governing managed deletion of data no longer needed. Related, though
+not independently verified this session: NIST 800-53 CM-2 (Baseline
+Configuration) and CIS Controls v8 Control 4 (Secure Configuration of
+Enterprise Assets and Software). Note NIST RMF is a process framework
+(Categorize -> Select -> Implement -> Assess -> Authorize -> Monitor),
+not itself a source of controls -- this architecture is evidence for
+RMF's Implement step, backed by the SI-14 family selected under
+Select.
