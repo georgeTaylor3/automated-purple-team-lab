@@ -793,3 +793,42 @@ Every stateless-provisioning script (CALDERA abilities, and the
 planned Fleet policy one). Looking into whether stateles config setuo
 at rebuild (aka policies/attacks) is better / more secure than
 stateful and separate and persistant non-boot volume.
+
+## Architecture decision: no persistent disk. Fully stateless, git as the source of truth.
+ 
+Initial thought to add a separate,
+persistent disk for Docker volumes, independent of the boot disk's
+lifecycle -- avoid the wipe entirely. Reconsidered: this would have
+been the wrong fix.
+ 
+**CALDERA already runs under --fresh, discarding stored state on
+every boot regardless of whether the underlying disk survives.**
+Adding persistence there would be self-defeating -- paying for
+storage that gets discarded every time. The  already-
+working persistence mechanism for CALDERA's abilities is git:
+juice-shop-sqli-login-bypass.yaml, applied idempotently at boot by
+ensure-caldera-abilities.sh. Versioned, reviewable via PR, no extra
+infrastructure.
+ 
+**Fleet/Elasticsearch configuration can follow the identical
+pattern** -- export agent policies and integration configs as JSON,
+commit to git, apply idempotently at boot via a script mirroring
+ensure-caldera-abilities.sh. No disk needed for configuration at all.
+ 
+**Attack data (CALDERA operation history, Elasticsearch detection
+events) is deliberately NOT meant to persist across visitors** --
+that's the correct behavior for the eventual public demo, not a gap
+to fix. Its lifecycle belongs to the demo controller's own visitor-
+session logic (Increment 3, not yet built), not to instance boot.
+ 
+**Resulting architecture, going forward:**
+- Boot disk stays fully ephemeral -- no separate persistent volume
+- All configuration (CALDERA abilities/adversaries, Fleet policies,
+  integrations) lives in git, applied idempotently at every boot
+- Attack data is inherently short-lived, cleared per visitor session
+  once the demo controller's timer logic exists
+This limits blast radius on comrpomise of any node. Someone only has acces to that
+sessions run data. All configs are open to view (in an entperise these policies and configs
+woudl certianly need to be restricted) for anyone who wants to see how this lab is configured
+All config drift becomes a git diff.. aka to commit config change (new/different CALDDERA ability,
+new/different elastic agent configuration/ integration) must be chanbge dthorugh git.
