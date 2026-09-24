@@ -634,3 +634,162 @@ fine here.
   ability (`GET /api/v2/adversaries`)
 - The agent's reported platform/executors/privilege
   (`GET /api/v2/agents`) against what the ability's executor requires
+
+## Password extraction bug: docker compose log line prefix
+
+Following up on the --fresh/password-extraction:
+the extraction step ran successfully (no warning), but the
+published value failed to authenticate.
+
+**Cause:** `docker compose logs` prefixes every line with the service
+name (`caldera  | `). The multi-line password reconstruction captured
+this prefix as part of the value -- e.g. `iMYkL0c...caldera|3oIFl...`
+instead of the real, contiguous password.
+
+**Fix:** strip the prefix before parsing:
+```
+docker compose logs caldera 2>&1 | sed -E 's/^caldera +\| ?//' | awk '...'
+```
+
+**Verified:** tested manually on control-node first -- confirmed clean 
+extraction, confirmed via a real login (302 with a genuine
+API_SESSION cookie) -- before applying to the committed script. Then
+verified via a full terraform -replace: extraction,
+publish, cleanup, and ability provisioning all completed with no
+errors, no manual intervention.
+
+## Fleet Server policy and target policies wiped -- same root cause as CALDERA
+
+After the CALDERA --fresh fix, brought the full lab up for a normal
+session. Fleet Server failed to start:
+```
+security_exception: failed to authenticate service account
+[elastic/fleet-server] with token name [token-...]
+```
+
+**Diagnosis:**
+1. Generated a new service account token directly against
+   Elasticsearch -- succeeded, confirming Elasticsearch's security
+   state no longer recognized the old one (stored, unchanged, in
+   Secret Manager).
+2. Published the new token, restarted Fleet Server -- authentication
+   succeeded, but it then hung indefinitely: `"Waiting on policy with
+   Fleet Server integration: fleet-server-policy"`.
+3. `GET /api/fleet/agent_policies` returned zero policies. The
+   Fleet Server container is hardcoded (via Terraform,
+   FLEET_SERVER_POLICY_ID) to look for a policy literally named
+   fleet-server-policy -- which no longer existed as the policies get
+   wiped after every restart.
+4. Recreated it via `POST /api/fleet/agent_policies` with that exact
+   id. Fleet Server came up healthy immediately after.
+5. Re-tried workstation-target enrollment -- failed with 401. Checked
+   agent_policies again: still only fleet-server-policy exists.
+   linux-workstation-policy and linux-webserver-policy, along with
+   their Elastic Defend and System integrations, are also gone.
+
+**Root cause: same as the CALDERA data aka not a
+new problem.** Docker's named volumes (including Elasticsearch's own
+data) live on control-node's boot disk. Every terraform -replace
+during the CALDERA investigation wiped that disk entirely --
+Elasticsearch included, not just CALDERA. This is the predicted
+recurrence of an already-identified, still-unresolved gap.
+
+**Fixed tonight:** Fleet Server itself (new token, recreated
+fleet-server-policy).
+
+**Not fixed tonight:** linux-workstation-policy and
+linux-webserver-policy, with their Elastic Defend integrations.
+Recreating these via raw API calls was judged too risky to guess
+blind -- Elastic Defend's integration config is considerably more
+complex than a basic agent policy (the "Complete EDR preset" Kibana's
+UI constructs internally). Decided to recreate via Kibana UI next
+session (same as originally done), then capture the real, working
+JSON via GET and use it to build a stateless provisioning script --
+same pattern as ensure-caldera-abilities.sh, applied to Fleet
+policies.
+
+**The actual fix that would prevent this whole category of recurrence:
+a separate, persistent disk for Docker volumes, independent of the
+boot disk's lifecycle.** Flagged two sessions ago, still not built.
+Every stateless-provisioning script (CALDERA abilities, and the
+planned Fleet policy one) is a real, working mitigation per-symptom --
+not a substitute for fixing the actual root cause.## Password extraction bug: docker compose log line prefix
+
+Following up on the --fresh/password-extraction work from the prior
+session: the extraction step ran successfully (no warning), but the
+published value failed to authenticate.
+
+**Cause:** `docker compose logs` prefixes every line with the service
+name (`caldera  | `). The multi-line password reconstruction captured
+this prefix as part of the value -- e.g. `iMYkL0c...caldera|3oIFl...`
+instead of the real, contiguous password.
+
+**Fix:** strip the prefix before parsing:
+```
+docker compose logs caldera 2>&1 | sed -E 's/^caldera +\| ?//' | awk '...'
+```
+
+**Verified:** tested manually on control-node first -- clean
+extraction, confirmed via a real login (302 with a genuine
+API_SESSION cookie) -- before applying to the committed script. Then
+verified end to end via a full terraform -replace: extraction,
+publish, cleanup, and ability provisioning all completed with no
+errors, no manual intervention.
+
+## Fleet Server policy and target policies wiped -- same root cause as CALDERA
+
+After the CALDERA --fresh fix, brought the full lab up for a normal
+session. Fleet Server failed to start:
+```
+security_exception: failed to authenticate service account
+[elastic/fleet-server] with token name [token-...]
+```
+
+**Diagnosis:**
+1. Generated a new service account token directly against
+   Elasticsearch -- succeeded, confirming Elasticsearch's security
+   state no longer recognized the old one (stored, unchanged, in
+   Secret Manager).
+2. Published the new token, restarted Fleet Server -- authentication
+   succeeded, but it then hung indefinitely: `"Waiting on policy with
+   Fleet Server integration: fleet-server-policy"`.
+3. `GET /api/fleet/agent_policies` returned zero policies. The
+   Fleet Server container is hardcoded (via Terraform,
+   FLEET_SERVER_POLICY_ID) to look for a policy literally named
+   fleet-server-policy -- which no longer existed.
+4. Recreated it via `POST /api/fleet/agent_policies` with that exact
+   id. Fleet Server came up healthy immediately after.
+5. Re-tried workstation-target enrollment -- failed with 401. Checked
+   agent_policies again: still only fleet-server-policy exists.
+   linux-workstation-policy and linux-webserver-policy, along with
+   their Elastic Defend and System integrations, are also gone.
+
+**Root cause: same as the CALDERA data loss two sessions ago, not a
+new problem.** Docker's named volumes (including Elasticsearch's own
+data) live on control-node's boot disk. Every terraform -replace
+during the CALDERA investigation wiped that disk entirely --
+Elasticsearch included, not just CALDERA. This is the predicted
+recurrence of an already-identified, still-unresolved gap.
+
+**Fixed tonight:** Fleet Server itself (new token, recreated
+fleet-server-policy).
+
+**Not fixed tonight, deliberate:** linux-workstation-policy and
+linux-webserver-policy, with their Elastic Defend integrations.
+Recreating these via raw API calls was judged too risky to guess
+blind -- Elastic Defend's integration config is considerably more
+complex than a basic agent policy (the "Complete EDR preset" Kibana's
+UI constructs internally). Decided to recreate via Kibana UI next
+session (same as originally done), then capture the real, working
+JSON via GET and use it to build a stateless provisioning script --
+same pattern as ensure-caldera-abilities.sh, applied to Fleet
+policies.
+
+**The actual fix that would prevent this whole category of 
+"gets wiped after rebuild/lab instantiation":
+a separate, persistent disk for Docker volumes, independent of the
+boot disk's lifecycle.** 
+Every stateless-provisioning script (CALDERA abilities, and the
+planned Fleet policy one). Looking into whether stateles config setuo
+at rebuild (aka policies/attacks) is better / more secure than
+stateful and separate and persistant non-boot volume.
