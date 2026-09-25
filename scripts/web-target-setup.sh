@@ -49,6 +49,17 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
+
+server {
+    listen 127.0.0.1:80;
+    server_name localhost;
+
+    location /nginx_status {
+        stub_status;
+        allow 127.0.0.1;
+        deny all;
+    }
+}
 NGINXCONF
 
   sudo ln -sf /etc/nginx/sites-available/web-target /etc/nginx/sites-enabled/web-target
