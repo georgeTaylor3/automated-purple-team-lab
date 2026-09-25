@@ -38,8 +38,14 @@ variable "zone" {
   default     = "us-central1-a"
 }
 
-variable "fleet_enrollment_token" {
-  description = "Fleet enrollment token for the workstation-targets agent policy. Supplied via TF_VAR_fleet_enrollment_token, never committed."
+variable "fleet_enrollment_token_workstation" {
+  description = "Fleet enrollment token for linux-workstation-policy. Supplied via TF_VAR_fleet_enrollment_token_workstation, never committed."
+  type        = string
+  sensitive   = true
+}
+
+variable "fleet_enrollment_token_web" {
+  description = "Fleet enrollment token for linux-webserver-policy. Supplied via TF_VAR_fleet_enrollment_token_web, never committed."
   type        = string
   sensitive   = true
 }
