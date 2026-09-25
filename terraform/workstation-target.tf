@@ -36,7 +36,7 @@ resource "google_compute_instance" "linux_workstation_target" {
   metadata = {
     fleet-url              = "https://10.60.10.39:8220"
     fleet-enrollment-token = var.fleet_enrollment_token_workstation
-    startup-script         = file("${path.module}/../scripts/boot-agent-enrollment.sh")
+    startup-script         = file("${path.module}/../scripts/linux-workstation-target-setup.sh")
   }
 
   labels = {
