@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# boot-agent-enrollment.sh
+# linux-workstation-target-setup.sh
 #
 # Runs once at instance boot (as a GCE Linux startup script) on Ubuntu
 # workstation targets. Enrolls the Elastic Agent binary already baked
@@ -7,8 +7,8 @@
 # Server, using values supplied at instance-creation time via GCE
 # metadata -- never baked into the image itself.
 #
-# Mirrors the reasoning in the Windows equivalent
-# (boot-agent-enrollment.ps1, drafted earlier): the agent binary is
+# Mirrors the reasoning intended for a future Windows equivalent
+# (not yet built): the agent binary is
 # static and belongs in the image; the Fleet URL and enrollment token
 # are session-specific and belong at boot time.
 #
@@ -25,7 +25,7 @@
 
 set -euo pipefail
 
-LOG_FILE="/var/log/boot-agent-enrollment.log"
+LOG_FILE="/var/log/linux-workstation-target-setup.log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 echo "--- Boot agent enrollment starting: $(date -u +%FT%TZ) ---"
