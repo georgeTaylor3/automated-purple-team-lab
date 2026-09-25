@@ -4,12 +4,12 @@
 # Generates a full root -> intermediate -> leaf PQC (ML-DSA-65)
 # certificate chain, using a pinned Alpine container for a
 # reproducible, current OpenSSL build (Alpine 3.24 ships 3.5.8,
+# which the host's own OpenSSL 3.0.13 does not support).
 #
 # Every generated key/cert gets a matching entry appended to
 # crypto-inventory.jsonl -- a declarative record of what algorithm
-# is used for what purpose, on what host.
-# Intent is for all nodes/applications to add the algorithms its using to this 
-# list for a project-level crypto inventory.
+# is used for what purpose, on what host, meant to be readable
+# across the whole project, not just this script's own output.
 #
 # This is a proof-of-concept / local-testing script. It generates
 # a fresh root and intermediate every run, matching the eventual
@@ -23,8 +23,8 @@ LEAF_CN="${1:?Usage: generate-chain.sh <leaf-common-name> <purpose> [output-dir]
 PURPOSE="${2:?Usage: generate-chain.sh <leaf-common-name> <purpose> [output-dir]}"
 OUT_DIR="${3:-./ca-output}"
 ALPINE_IMAGE="alpine:3.24"
-ALGO="mldsa65"
-ALGO_LABEL="ML-DSA-65"
+ALGO="mldsa87"
+ALGO_LABEL="ML-DSA-87"
 INVENTORY_FILE="$OUT_DIR/crypto-inventory.jsonl"
 
 mkdir -p "$OUT_DIR"
