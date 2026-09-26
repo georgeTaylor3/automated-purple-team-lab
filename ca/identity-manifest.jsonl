@@ -1,0 +1,7 @@
+{"identity": "web-target.internal", "type": "vm", "parent": null, "source_file": "web-target.tf"}
+{"identity": "linux-workstation-target.internal", "type": "vm", "parent": null, "source_file": "workstation-target.tf"}
+{"identity": "control-node.internal", "type": "vm", "parent": null, "source_file": "control-node.tf"}
+{"identity": "caldera.control-node.internal", "type": "container", "parent": "control-node.internal", "source_file": "docker-compose.yml"}
+{"identity": "elasticsearch.control-node.internal", "type": "container", "parent": "control-node.internal", "source_file": "docker-compose.yml"}
+{"identity": "kibana.control-node.internal", "type": "container", "parent": "control-node.internal", "source_file": "docker-compose.yml"}
+{"identity": "fleet-server.control-node.internal", "type": "container", "parent": "control-node.internal", "source_file": "docker-compose.yml"}
