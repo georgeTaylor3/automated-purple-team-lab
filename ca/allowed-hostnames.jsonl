@@ -1,3 +1,0 @@
-{"hostname": "web-target.internal", "source_file": "web-target.tf"}
-{"hostname": "linux-workstation-target.internal", "source_file": "workstation-target.tf"}
-{"hostname": "control-node.internal", "source_file": "control-node.tf"}

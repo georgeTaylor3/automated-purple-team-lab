@@ -1,0 +1,12 @@
+# Python dependencies for scripts/ca/ -- the identity manifest
+# extraction script (extract-identity-manifest.sh) and its future
+# companions (sign-server.py, generate-chain.sh's supporting tooling).
+#
+# Versions pinned to what was actually confirmed working, not left
+# floating -- an unpinned dependency is itself a form of config drift
+# CM-8/CM-2 (Baseline Configuration) are meant to prevent.
+#
+# Install: pip install -r scripts/ca/requirements.txt --break-system-packages
+
+pyyaml==6.0.1
+python-hcl2==8.1.4
