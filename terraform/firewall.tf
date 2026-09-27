@@ -1,8 +1,9 @@
 locals {
-  control_node_service_account   = "control-node-sa@${var.project_id}.iam.gserviceaccount.com"
-  web_target_service_account     = "web-target-sa@${var.project_id}.iam.gserviceaccount.com"
-  workstation_service_account    = "workstation-target-sa@${var.project_id}.iam.gserviceaccount.com"
-  packer_builder_service_account = "packer-builder-sa@${var.project_id}.iam.gserviceaccount.com"
+  control_node_service_account        = "control-node-sa@${var.project_id}.iam.gserviceaccount.com"
+  web_target_service_account          = "web-target-sa@${var.project_id}.iam.gserviceaccount.com"
+  linux_workstation_service_account   = "workstation-target-sa@${var.project_id}.iam.gserviceaccount.com"
+  windows_workstation_service_account = "windows-workstation-target-sa@${var.project_id}.iam.gserviceaccount.com"
+  packer_builder_service_account      = "packer-builder-sa@${var.project_id}.iam.gserviceaccount.com"
 }
 
 resource "google_compute_firewall" "allow_target_to_caldera_c2_ingress" {
@@ -15,7 +16,7 @@ resource "google_compute_firewall" "allow_target_to_caldera_c2_ingress" {
 
   source_service_accounts = [
     local.web_target_service_account,
-    local.workstation_service_account
+    local.linux_workstation_service_account
   ]
 
   target_service_accounts = [
@@ -46,7 +47,7 @@ resource "google_compute_firewall" "allow_target_to_caldera_c2_egress" {
 
   target_service_accounts = [
     local.web_target_service_account,
-    local.workstation_service_account
+    local.linux_workstation_service_account
   ]
 
   allow {
@@ -69,7 +70,7 @@ resource "google_compute_firewall" "allow_target_to_fleet_server_ingress" {
 
   source_service_accounts = [
     local.web_target_service_account,
-    local.workstation_service_account
+    local.linux_workstation_service_account
   ]
 
   target_service_accounts = [
@@ -99,7 +100,7 @@ resource "google_compute_firewall" "allow_target_to_fleet_server_egress" {
   ]
 
   target_service_accounts = [
-    local.workstation_service_account,
+    local.linux_workstation_service_account,
     local.web_target_service_account
   ]
 
@@ -115,14 +116,14 @@ resource "google_compute_firewall" "allow_target_to_fleet_server_egress" {
 
 resource "google_compute_firewall" "allow_workstation_to_web_https_ingress" {
   name        = "allow-workstation-to-web-https"
-  description = "Allow the Windows workstation workload to access the Linux web workload over HTTPS."
+  description = "Allow linux-workstation-target to access web-target over HTTPS."
 
   network   = google_compute_network.lab.name
   direction = "INGRESS"
   priority  = 1200
 
   source_service_accounts = [
-    local.workstation_service_account
+    local.linux_workstation_service_account
   ]
 
   target_service_accounts = [
@@ -141,7 +142,7 @@ resource "google_compute_firewall" "allow_workstation_to_web_https_ingress" {
 
 resource "google_compute_firewall" "allow_workstation_to_web_https_egress" {
   name        = "allow-workstation-to-web-https-egress"
-  description = "Allow the Windows workstation workload to initiate HTTPS traffic to the server target subnet."
+  description = "Allow linux-workstation-target to initiate HTTPS traffic to the server target subnet."
 
   network   = google_compute_network.lab.name
   direction = "EGRESS"
@@ -152,7 +153,7 @@ resource "google_compute_firewall" "allow_workstation_to_web_https_egress" {
   ]
 
   target_service_accounts = [
-    local.workstation_service_account
+    local.linux_workstation_service_account
   ]
 
   allow {
@@ -178,7 +179,7 @@ resource "google_compute_firewall" "allow_workstation_windows_kms_egress" {
   ]
 
   target_service_accounts = [
-    local.workstation_service_account
+    local.windows_workstation_service_account
   ]
 
   allow {
@@ -205,7 +206,7 @@ resource "google_compute_firewall" "deny_target_to_control" {
 
   target_service_accounts = [
     local.web_target_service_account,
-    local.workstation_service_account
+    local.linux_workstation_service_account
   ]
 
   deny {
@@ -308,7 +309,7 @@ resource "google_compute_firewall" "deny_target_other_egress" {
 
   target_service_accounts = [
     local.web_target_service_account,
-    local.workstation_service_account
+    local.linux_workstation_service_account
   ]
 
   deny {
@@ -653,7 +654,7 @@ resource "google_compute_firewall" "allow_target_to_elasticsearch_ingress" {
 
   source_service_accounts = [
     local.web_target_service_account,
-    local.workstation_service_account
+    local.linux_workstation_service_account
   ]
 
   target_service_accounts = [
@@ -684,7 +685,7 @@ resource "google_compute_firewall" "allow_target_to_elasticsearch_egress" {
 
   target_service_accounts = [
     local.web_target_service_account,
-    local.workstation_service_account
+    local.linux_workstation_service_account
   ]
 
   allow {
@@ -710,7 +711,7 @@ resource "google_compute_firewall" "allow_iap_to_workstation_target_ssh" {
   ]
 
   target_service_accounts = [
-    local.workstation_service_account
+    local.linux_workstation_service_account
   ]
 
   allow {

@@ -23,7 +23,7 @@ resource "google_compute_instance" "linux_workstation_target" {
   }
 
   service_account {
-    email  = local.workstation_service_account
+    email  = local.linux_workstation_service_account
     scopes = ["cloud-platform"]
   }
 
