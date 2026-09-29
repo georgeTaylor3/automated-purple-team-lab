@@ -1,0 +1,80 @@
+{
+    "item": {
+        "id": "fleet-server-policy",
+        "version": "WzE0MywyXQ==",
+        "created_at": "2026-09-24T02:41:18.429Z",
+        "space_ids": [
+            "default"
+        ],
+        "is_default_fleet_server": true,
+        "inactivity_timeout": 1209600,
+        "schema_version": "1.1.1",
+        "package_policies": [
+            {
+                "id": "f46942c1-3c6f-49fd-abdc-cb569aad7ac1",
+                "version": "WzE0NSwyXQ==",
+                "spaceIds": [
+                    "default"
+                ],
+                "name": "fleet_server-1",
+                "namespace": "",
+                "package": {
+                    "name": "fleet_server",
+                    "title": "Fleet Server",
+                    "version": "1.6.1"
+                },
+                "enabled": true,
+                "policy_id": "fleet-server-policy",
+                "policy_ids": [
+                    "fleet-server-policy"
+                ],
+                "inputs": [
+                    {
+                        "type": "fleet-server",
+                        "policy_template": "fleet_server",
+                        "enabled": true,
+                        "streams": [],
+                        "vars": {
+                            "max_agents": {
+                                "type": "integer"
+                            },
+                            "max_connections": {
+                                "type": "integer"
+                            },
+                            "custom": {
+                                "value": "",
+                                "type": "yaml"
+                            }
+                        },
+                        "id": "fleet-server-fleet_server-f46942c1-3c6f-49fd-abdc-cb569aad7ac1",
+                        "compiled_input": {
+                            "unused_key": "not_used"
+                        }
+                    }
+                ],
+                "revision": 1,
+                "created_at": "2026-09-24T02:41:23.048Z",
+                "created_by": "elastic",
+                "updated_at": "2026-09-24T02:41:23.048Z",
+                "updated_by": "elastic"
+            }
+        ],
+        "agents": 1,
+        "name": "Fleet Server Policy",
+        "namespace": "default",
+        "status": "active",
+        "is_managed": false,
+        "revision": 1,
+        "updated_at": "2026-09-24T02:41:18.429Z",
+        "updated_by": "elastic",
+        "is_protected": false,
+        "unprivileged_agents": 0,
+        "fips_agents": 0,
+        "agents_per_version": [
+            {
+                "version": "9.5.2",
+                "count": 1
+            }
+        ]
+    }
+}

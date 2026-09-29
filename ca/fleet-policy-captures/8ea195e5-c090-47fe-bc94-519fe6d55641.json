@@ -1,0 +1,1446 @@
+{
+    "item": {
+        "id": "8ea195e5-c090-47fe-bc94-519fe6d55641",
+        "version": "WzY4OSwzXQ==",
+        "created_at": "2026-09-24T23:20:30.446Z",
+        "space_ids": [
+            "default"
+        ],
+        "description": "Policy for Linux workstation targets",
+        "monitoring_enabled": [
+            "logs",
+            "metrics",
+            "traces"
+        ],
+        "inactivity_timeout": 1209600,
+        "schema_version": "1.1.1",
+        "package_policies": [
+            {
+                "id": "f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                "version": "WzU2NywzXQ==",
+                "spaceIds": [
+                    "default"
+                ],
+                "name": "system-1",
+                "namespace": "",
+                "package": {
+                    "name": "system",
+                    "title": "System",
+                    "version": "2.26.0",
+                    "requires_root": true,
+                    "fips_compatible": true
+                },
+                "enabled": true,
+                "policy_id": "8ea195e5-c090-47fe-bc94-519fe6d55641",
+                "policy_ids": [
+                    "8ea195e5-c090-47fe-bc94-519fe6d55641"
+                ],
+                "inputs": [
+                    {
+                        "type": "logfile",
+                        "policy_template": "system",
+                        "enabled": true,
+                        "streams": [
+                            {
+                                "enabled": true,
+                                "data_stream": {
+                                    "type": "logs",
+                                    "dataset": "system.auth"
+                                },
+                                "vars": {
+                                    "ignore_older": {
+                                        "value": "72h",
+                                        "type": "text"
+                                    },
+                                    "paths": {
+                                        "value": [
+                                            "/var/log/auth.log*",
+                                            "/var/log/secure*"
+                                        ],
+                                        "type": "text"
+                                    },
+                                    "preserve_original_event": {
+                                        "value": false,
+                                        "type": "bool"
+                                    },
+                                    "tags": {
+                                        "value": [
+                                            "system-auth"
+                                        ],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "type": "yaml"
+                                    }
+                                },
+                                "id": "logfile-system.auth-f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                                "compiled_stream": {
+                                    "condition": "(${host.platform} != \"windows\") and (${host.os_version} != \"12 (bookworm)\" and ${host.os_version} != \"13 (trixie)\" and (${host.os_platform} != \"amzn\" or ${host.os_version} != \"2023\") and (${host.os_platform} != \"sles\" or (${host.os_version} != \"15 SP1\" and ${host.os_version} != \"15-SP1\" and ${host.os_version} != \"15 SP2\" and ${host.os_version} != \"15-SP2\" and ${host.os_version} != \"15 SP3\" and ${host.os_version} != \"15-SP3\" and ${host.os_version} != \"15 SP4\" and ${host.os_version} != \"15-SP4\" and ${host.os_version} != \"15 SP5\" and ${host.os_version} != \"15-SP5\" and ${host.os_version} != \"15 SP6\" and ${host.os_version} != \"15-SP6\" and ${host.os_version} != \"15 SP7\" and ${host.os_version} != \"15-SP7\" and ${host.os_version} != \"16.0\")))",
+                                    "ignore_older": "72h",
+                                    "paths": [
+                                        "/var/log/auth.log*",
+                                        "/var/log/secure*"
+                                    ],
+                                    "exclude_files": [
+                                        "\\.gz$"
+                                    ],
+                                    "multiline": {
+                                        "pattern": "^\\s",
+                                        "match": "after"
+                                    },
+                                    "tags": [
+                                        "system-auth"
+                                    ],
+                                    "allow_deprecated_use": true,
+                                    "processors": [
+                                        {
+                                            "add_fields": {
+                                                "target": "event",
+                                                "fields": {
+                                                    "module": "system"
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "add_locale": null
+                                        },
+                                        {
+                                            "rename": {
+                                                "fields": [
+                                                    {
+                                                        "from": "message",
+                                                        "to": "event.original"
+                                                    }
+                                                ],
+                                                "ignore_missing": true,
+                                                "fail_on_error": false
+                                            }
+                                        },
+                                        {
+                                            "syslog": {
+                                                "field": "event.original",
+                                                "ignore_missing": true,
+                                                "ignore_failure": true
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "enabled": true,
+                                "data_stream": {
+                                    "type": "logs",
+                                    "dataset": "system.syslog"
+                                },
+                                "vars": {
+                                    "paths": {
+                                        "value": [
+                                            "/var/log/messages*",
+                                            "/var/log/syslog*",
+                                            "/var/log/system*"
+                                        ],
+                                        "type": "text"
+                                    },
+                                    "preserve_original_event": {
+                                        "value": false,
+                                        "type": "bool"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "type": "yaml"
+                                    },
+                                    "ignore_older": {
+                                        "value": "72h",
+                                        "type": "text"
+                                    },
+                                    "exclude_files": {
+                                        "value": [
+                                            "\\.gz$"
+                                        ],
+                                        "type": "text"
+                                    }
+                                },
+                                "id": "logfile-system.syslog-f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                                "compiled_stream": {
+                                    "condition": "(${host.platform} != \"windows\") and (${host.os_version} != \"12 (bookworm)\" and ${host.os_version} != \"13 (trixie)\" and (${host.os_platform} != \"amzn\" or ${host.os_version} != \"2023\") and (${host.os_platform} != \"sles\" or (${host.os_version} != \"15 SP1\" and ${host.os_version} != \"15-SP1\" and ${host.os_version} != \"15 SP2\" and ${host.os_version} != \"15-SP2\" and ${host.os_version} != \"15 SP3\" and ${host.os_version} != \"15-SP3\" and ${host.os_version} != \"15 SP4\" and ${host.os_version} != \"15-SP4\" and ${host.os_version} != \"15 SP5\" and ${host.os_version} != \"15-SP5\" and ${host.os_version} != \"15 SP6\" and ${host.os_version} != \"15-SP6\" and ${host.os_version} != \"15 SP7\" and ${host.os_version} != \"15-SP7\" and ${host.os_version} != \"16.0\")))",
+                                    "paths": [
+                                        "/var/log/messages*",
+                                        "/var/log/syslog*",
+                                        "/var/log/system*"
+                                    ],
+                                    "exclude_files": [
+                                        "\\.gz$"
+                                    ],
+                                    "multiline": {
+                                        "pattern": "^\\s",
+                                        "match": "after"
+                                    },
+                                    "processors": [
+                                        {
+                                            "add_fields": {
+                                                "target": "event",
+                                                "fields": {
+                                                    "module": "system"
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "add_locale": null
+                                        }
+                                    ],
+                                    "allow_deprecated_use": true,
+                                    "tags": null,
+                                    "ignore_older": "72h"
+                                }
+                            }
+                        ],
+                        "vars": {
+                            "condition": {
+                                "value": "(${host.platform} != \"windows\") and (${host.os_version} != \"12 (bookworm)\" and ${host.os_version} != \"13 (trixie)\" and (${host.os_platform} != \"amzn\" or ${host.os_version} != \"2023\") and (${host.os_platform} != \"sles\" or (${host.os_version} != \"15 SP1\" and ${host.os_version} != \"15-SP1\" and ${host.os_version} != \"15 SP2\" and ${host.os_version} != \"15-SP2\" and ${host.os_version} != \"15 SP3\" and ${host.os_version} != \"15-SP3\" and ${host.os_version} != \"15 SP4\" and ${host.os_version} != \"15-SP4\" and ${host.os_version} != \"15 SP5\" and ${host.os_version} != \"15-SP5\" and ${host.os_version} != \"15 SP6\" and ${host.os_version} != \"15-SP6\" and ${host.os_version} != \"15 SP7\" and ${host.os_version} != \"15-SP7\" and ${host.os_version} != \"16.0\")))",
+                                "type": "text"
+                            }
+                        },
+                        "id": "logfile-system-f1ba4336-c168-4148-9b06-6e4ca7bac1f2"
+                    },
+                    {
+                        "type": "journald",
+                        "policy_template": "system",
+                        "enabled": true,
+                        "streams": [
+                            {
+                                "enabled": true,
+                                "data_stream": {
+                                    "type": "logs",
+                                    "dataset": "system.auth"
+                                },
+                                "vars": {
+                                    "seek": {
+                                        "value": "head",
+                                        "type": "select"
+                                    },
+                                    "since": {
+                                        "type": "text"
+                                    },
+                                    "preserve_original_event": {
+                                        "value": false,
+                                        "type": "bool"
+                                    },
+                                    "paths": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "include_matches": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "type": "yaml"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    }
+                                },
+                                "id": "journald-system.auth-f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                                "compiled_stream": {
+                                    "type": "journald",
+                                    "seek": "head",
+                                    "include_matches": [
+                                        "SYSLOG_FACILITY=4",
+                                        "SYSLOG_FACILITY=10"
+                                    ],
+                                    "condition": "(${host.platform} != \"windows\") and (${host.os_version} == \"12 (bookworm)\" or ${host.os_version} == \"13 (trixie)\" or (${host.os_platform} == \"amzn\" and ${host.os_version} == \"2023\") or (${host.os_platform} == \"sles\" and (${host.os_version} == \"15 SP1\" or ${host.os_version} == \"15-SP1\" or ${host.os_version} == \"15 SP2\" or ${host.os_version} == \"15-SP2\" or ${host.os_version} == \"15 SP3\" or ${host.os_version} == \"15-SP3\" or ${host.os_version} == \"15 SP4\" or ${host.os_version} == \"15-SP4\" or ${host.os_version} == \"15 SP5\" or ${host.os_version} == \"15-SP5\" or ${host.os_version} == \"15 SP6\" or ${host.os_version} == \"15-SP6\" or ${host.os_version} == \"15 SP7\" or ${host.os_version} == \"15-SP7\" or ${host.os_version} == \"16.0\")))",
+                                    "tags": null,
+                                    "processors": [
+                                        {
+                                            "add_fields": {
+                                                "target": "event",
+                                                "fields": {
+                                                    "module": "system"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "enabled": true,
+                                "data_stream": {
+                                    "type": "logs",
+                                    "dataset": "system.syslog"
+                                },
+                                "vars": {
+                                    "seek": {
+                                        "value": "head",
+                                        "type": "select"
+                                    },
+                                    "since": {
+                                        "type": "text"
+                                    },
+                                    "preserve_original_event": {
+                                        "value": false,
+                                        "type": "bool"
+                                    },
+                                    "paths": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "include_matches": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "type": "yaml"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    }
+                                },
+                                "id": "journald-system.syslog-f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                                "compiled_stream": {
+                                    "type": "journald",
+                                    "seek": "head",
+                                    "include_matches": [
+                                        "SYSLOG_FACILITY=0",
+                                        "SYSLOG_FACILITY=1",
+                                        "SYSLOG_FACILITY=2",
+                                        "SYSLOG_FACILITY=3",
+                                        "SYSLOG_FACILITY=5",
+                                        "SYSLOG_FACILITY=6",
+                                        "SYSLOG_FACILITY=7",
+                                        "SYSLOG_FACILITY=8",
+                                        "SYSLOG_FACILITY=9",
+                                        "SYSLOG_FACILITY=11",
+                                        "SYSLOG_FACILITY=12",
+                                        "SYSLOG_FACILITY=15"
+                                    ],
+                                    "condition": "(${host.platform} != \"windows\") and (${host.os_version} == \"12 (bookworm)\" or ${host.os_version} == \"13 (trixie)\" or (${host.os_platform} == \"amzn\" and ${host.os_version} == \"2023\") or (${host.os_platform} == \"sles\" and (${host.os_version} == \"15 SP1\" or ${host.os_version} == \"15-SP1\" or ${host.os_version} == \"15 SP2\" or ${host.os_version} == \"15-SP2\" or ${host.os_version} == \"15 SP3\" or ${host.os_version} == \"15-SP3\" or ${host.os_version} == \"15 SP4\" or ${host.os_version} == \"15-SP4\" or ${host.os_version} == \"15 SP5\" or ${host.os_version} == \"15-SP5\" or ${host.os_version} == \"15 SP6\" or ${host.os_version} == \"15-SP6\" or ${host.os_version} == \"15 SP7\" or ${host.os_version} == \"15-SP7\" or ${host.os_version} == \"16.0\")))",
+                                    "tags": null,
+                                    "processors": [
+                                        {
+                                            "add_fields": {
+                                                "target": "event",
+                                                "fields": {
+                                                    "module": "system"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ],
+                        "vars": {
+                            "condition": {
+                                "value": "(${host.platform} != \"windows\") and (${host.os_version} == \"12 (bookworm)\" or ${host.os_version} == \"13 (trixie)\" or (${host.os_platform} == \"amzn\" and ${host.os_version} == \"2023\") or (${host.os_platform} == \"sles\" and (${host.os_version} == \"15 SP1\" or ${host.os_version} == \"15-SP1\" or ${host.os_version} == \"15 SP2\" or ${host.os_version} == \"15-SP2\" or ${host.os_version} == \"15 SP3\" or ${host.os_version} == \"15-SP3\" or ${host.os_version} == \"15 SP4\" or ${host.os_version} == \"15-SP4\" or ${host.os_version} == \"15 SP5\" or ${host.os_version} == \"15-SP5\" or ${host.os_version} == \"15 SP6\" or ${host.os_version} == \"15-SP6\" or ${host.os_version} == \"15 SP7\" or ${host.os_version} == \"15-SP7\" or ${host.os_version} == \"16.0\")))",
+                                "type": "text"
+                            }
+                        },
+                        "id": "journald-system-f1ba4336-c168-4148-9b06-6e4ca7bac1f2"
+                    },
+                    {
+                        "type": "winlog",
+                        "policy_template": "system",
+                        "enabled": true,
+                        "streams": [
+                            {
+                                "enabled": true,
+                                "data_stream": {
+                                    "type": "logs",
+                                    "dataset": "system.application"
+                                },
+                                "vars": {
+                                    "preserve_original_event": {
+                                        "value": false,
+                                        "type": "bool"
+                                    },
+                                    "event_id": {
+                                        "type": "text"
+                                    },
+                                    "ignore_older": {
+                                        "value": "72h",
+                                        "type": "text"
+                                    },
+                                    "language": {
+                                        "value": 0,
+                                        "type": "text"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "type": "yaml"
+                                    },
+                                    "custom": {
+                                        "value": "# Winlog configuration example\n#batch_read_size: 100",
+                                        "type": "yaml"
+                                    }
+                                },
+                                "id": "winlog-system.application-f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                                "compiled_stream": {
+                                    "name": "Application",
+                                    "condition": "${host.platform} == 'windows'",
+                                    "ignore_older": "72h",
+                                    "processors": [
+                                        {
+                                            "add_fields": {
+                                                "target": "event",
+                                                "fields": {
+                                                    "module": "system"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "enabled": true,
+                                "data_stream": {
+                                    "type": "logs",
+                                    "dataset": "system.security"
+                                },
+                                "vars": {
+                                    "preserve_original_event": {
+                                        "value": false,
+                                        "type": "bool"
+                                    },
+                                    "event_id": {
+                                        "type": "text"
+                                    },
+                                    "ignore_older": {
+                                        "value": "72h",
+                                        "type": "text"
+                                    },
+                                    "language": {
+                                        "value": 0,
+                                        "type": "text"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "type": "yaml"
+                                    },
+                                    "custom": {
+                                        "value": "# Winlog configuration example\n#batch_read_size: 100",
+                                        "type": "yaml"
+                                    }
+                                },
+                                "id": "winlog-system.security-f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                                "compiled_stream": {
+                                    "name": "Security",
+                                    "condition": "${host.platform} == 'windows'",
+                                    "ignore_older": "72h",
+                                    "tags": null,
+                                    "processors": [
+                                        {
+                                            "add_fields": {
+                                                "target": "event",
+                                                "fields": {
+                                                    "module": "system"
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "decode_xml": {
+                                                "when": {
+                                                    "and": [
+                                                        {
+                                                            "has_fields": [
+                                                                "winlog.event_data.TaskContent"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "equals": {
+                                                                "winlog.provider_name": "Microsoft-Windows-Security-Auditing"
+                                                            }
+                                                        }
+                                                    ]
+                                                },
+                                                "field": "winlog.event_data.TaskContent",
+                                                "target_field": "winlog._tmp.scheduled_task.task_content",
+                                                "to_lower": true,
+                                                "ignore_missing": true,
+                                                "ignore_failure": true
+                                            }
+                                        },
+                                        {
+                                            "decode_xml": {
+                                                "when": {
+                                                    "and": [
+                                                        {
+                                                            "has_fields": [
+                                                                "winlog.event_data.TaskContentNew"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "equals": {
+                                                                "winlog.provider_name": "Microsoft-Windows-Security-Auditing"
+                                                            }
+                                                        }
+                                                    ]
+                                                },
+                                                "field": "winlog.event_data.TaskContentNew",
+                                                "target_field": "winlog._tmp.scheduled_task.task_content_new",
+                                                "to_lower": true,
+                                                "ignore_missing": true,
+                                                "ignore_failure": true
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "enabled": true,
+                                "data_stream": {
+                                    "type": "logs",
+                                    "dataset": "system.system"
+                                },
+                                "vars": {
+                                    "preserve_original_event": {
+                                        "value": false,
+                                        "type": "bool"
+                                    },
+                                    "event_id": {
+                                        "type": "text"
+                                    },
+                                    "ignore_older": {
+                                        "value": "72h",
+                                        "type": "text"
+                                    },
+                                    "language": {
+                                        "value": 0,
+                                        "type": "text"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "type": "yaml"
+                                    },
+                                    "custom": {
+                                        "value": "# Winlog configuration example\n#batch_read_size: 100",
+                                        "type": "yaml"
+                                    }
+                                },
+                                "id": "winlog-system.system-f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                                "compiled_stream": {
+                                    "name": "System",
+                                    "condition": "${host.platform} == 'windows'",
+                                    "ignore_older": "72h",
+                                    "processors": [
+                                        {
+                                            "add_fields": {
+                                                "target": "event",
+                                                "fields": {
+                                                    "module": "system"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ],
+                        "id": "winlog-system-f1ba4336-c168-4148-9b06-6e4ca7bac1f2"
+                    },
+                    {
+                        "type": "system/metrics",
+                        "policy_template": "system",
+                        "enabled": true,
+                        "streams": [
+                            {
+                                "enabled": false,
+                                "data_stream": {
+                                    "type": "metrics",
+                                    "dataset": "system.core"
+                                },
+                                "vars": {
+                                    "period": {
+                                        "value": "10s",
+                                        "type": "text"
+                                    },
+                                    "core.metrics": {
+                                        "value": [
+                                            "percentages"
+                                        ],
+                                        "type": "text"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "type": "yaml"
+                                    },
+                                    "use_performance_counters": {
+                                        "value": false,
+                                        "type": "bool"
+                                    }
+                                },
+                                "id": "system/metrics-system.core-f1ba4336-c168-4148-9b06-6e4ca7bac1f2"
+                            },
+                            {
+                                "enabled": true,
+                                "data_stream": {
+                                    "type": "metrics",
+                                    "dataset": "system.cpu"
+                                },
+                                "vars": {
+                                    "period": {
+                                        "value": "10s",
+                                        "type": "text"
+                                    },
+                                    "cpu.metrics": {
+                                        "value": [
+                                            "percentages",
+                                            "normalized_percentages"
+                                        ],
+                                        "type": "text"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "type": "yaml"
+                                    },
+                                    "use_performance_counters": {
+                                        "value": false,
+                                        "type": "bool"
+                                    }
+                                },
+                                "id": "system/metrics-system.cpu-f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                                "compiled_stream": {
+                                    "metricsets": [
+                                        "cpu"
+                                    ],
+                                    "cpu.metrics": [
+                                        "percentages",
+                                        "normalized_percentages"
+                                    ],
+                                    "period": "10s"
+                                }
+                            },
+                            {
+                                "enabled": true,
+                                "data_stream": {
+                                    "type": "metrics",
+                                    "dataset": "system.diskio"
+                                },
+                                "vars": {
+                                    "period": {
+                                        "value": "10s",
+                                        "type": "text"
+                                    },
+                                    "diskio.include_devices": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "type": "yaml"
+                                    }
+                                },
+                                "id": "system/metrics-system.diskio-f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                                "compiled_stream": {
+                                    "metricsets": [
+                                        "diskio"
+                                    ],
+                                    "diskio.include_devices": null,
+                                    "period": "10s"
+                                }
+                            },
+                            {
+                                "enabled": true,
+                                "data_stream": {
+                                    "type": "metrics",
+                                    "dataset": "system.filesystem"
+                                },
+                                "vars": {
+                                    "period": {
+                                        "value": "1m",
+                                        "type": "text"
+                                    },
+                                    "filesystem.ignore_types": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "value": "- drop_event.when.regexp:\n    system.filesystem.mount_point: ^/(sys|cgroup|proc|dev|etc|host|lib|snap)($|/)\n",
+                                        "type": "yaml"
+                                    }
+                                },
+                                "id": "system/metrics-system.filesystem-f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                                "compiled_stream": {
+                                    "metricsets": [
+                                        "filesystem"
+                                    ],
+                                    "period": "1m",
+                                    "processors": [
+                                        {
+                                            "drop_event.when.regexp": {
+                                                "system.filesystem.mount_point": "^/(sys|cgroup|proc|dev|etc|host|lib|snap)($|/)"
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "enabled": true,
+                                "data_stream": {
+                                    "type": "metrics",
+                                    "dataset": "system.fsstat"
+                                },
+                                "vars": {
+                                    "period": {
+                                        "value": "1m",
+                                        "type": "text"
+                                    },
+                                    "filesystem.ignore_types": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "value": "- drop_event.when.regexp:\n    system.fsstat.mount_point: ^/(sys|cgroup|proc|dev|etc|host|lib|snap)($|/)\n",
+                                        "type": "yaml"
+                                    }
+                                },
+                                "id": "system/metrics-system.fsstat-f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                                "compiled_stream": {
+                                    "metricsets": [
+                                        "fsstat"
+                                    ],
+                                    "period": "1m",
+                                    "processors": [
+                                        {
+                                            "drop_event.when.regexp": {
+                                                "system.fsstat.mount_point": "^/(sys|cgroup|proc|dev|etc|host|lib|snap)($|/)"
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "enabled": true,
+                                "data_stream": {
+                                    "type": "metrics",
+                                    "dataset": "system.load"
+                                },
+                                "vars": {
+                                    "period": {
+                                        "value": "10s",
+                                        "type": "text"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "type": "yaml"
+                                    }
+                                },
+                                "id": "system/metrics-system.load-f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                                "compiled_stream": {
+                                    "metricsets": [
+                                        "load"
+                                    ],
+                                    "condition": "${host.platform} != 'windows'",
+                                    "period": "10s"
+                                }
+                            },
+                            {
+                                "enabled": true,
+                                "data_stream": {
+                                    "type": "metrics",
+                                    "dataset": "system.memory"
+                                },
+                                "vars": {
+                                    "period": {
+                                        "value": "10s",
+                                        "type": "text"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "type": "yaml"
+                                    }
+                                },
+                                "id": "system/metrics-system.memory-f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                                "compiled_stream": {
+                                    "metricsets": [
+                                        "memory"
+                                    ],
+                                    "period": "10s"
+                                }
+                            },
+                            {
+                                "enabled": true,
+                                "data_stream": {
+                                    "type": "metrics",
+                                    "dataset": "system.network"
+                                },
+                                "vars": {
+                                    "period": {
+                                        "value": "10s",
+                                        "type": "text"
+                                    },
+                                    "network.interfaces": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "type": "yaml"
+                                    }
+                                },
+                                "id": "system/metrics-system.network-f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                                "compiled_stream": {
+                                    "metricsets": [
+                                        "network"
+                                    ],
+                                    "period": "10s",
+                                    "interfaces": null,
+                                    "network.interfaces": null
+                                }
+                            },
+                            {
+                                "enabled": false,
+                                "data_stream": {
+                                    "type": "metrics",
+                                    "dataset": "system.ntp"
+                                },
+                                "vars": {
+                                    "period": {
+                                        "value": "10s",
+                                        "type": "text"
+                                    },
+                                    "ntp.servers": {
+                                        "value": [
+                                            "pool.ntp.org"
+                                        ],
+                                        "type": "text"
+                                    },
+                                    "ntp.timeout": {
+                                        "value": "5s",
+                                        "type": "text"
+                                    },
+                                    "ntp.version": {
+                                        "value": "4",
+                                        "type": "select"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "type": "yaml"
+                                    }
+                                },
+                                "id": "system/metrics-system.ntp-f1ba4336-c168-4148-9b06-6e4ca7bac1f2"
+                            },
+                            {
+                                "enabled": true,
+                                "data_stream": {
+                                    "type": "metrics",
+                                    "dataset": "system.process"
+                                },
+                                "vars": {
+                                    "period": {
+                                        "value": "10s",
+                                        "type": "text"
+                                    },
+                                    "process.include_top_n.by_cpu": {
+                                        "value": 5,
+                                        "type": "integer"
+                                    },
+                                    "process.include_top_n.by_memory": {
+                                        "value": 5,
+                                        "type": "integer"
+                                    },
+                                    "process.cmdline.cache.enabled": {
+                                        "value": true,
+                                        "type": "bool"
+                                    },
+                                    "process.cgroups.enabled": {
+                                        "value": false,
+                                        "type": "bool"
+                                    },
+                                    "process.env.whitelist": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "process.include_cpu_ticks": {
+                                        "value": false,
+                                        "type": "bool"
+                                    },
+                                    "degrade_on_partial": {
+                                        "value": false,
+                                        "type": "bool"
+                                    },
+                                    "processes": {
+                                        "value": [
+                                            ".*"
+                                        ],
+                                        "type": "text"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "type": "yaml"
+                                    }
+                                },
+                                "id": "system/metrics-system.process-f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                                "compiled_stream": {
+                                    "metricsets": [
+                                        "process"
+                                    ],
+                                    "period": "10s",
+                                    "process.include_top_n.by_cpu": 5,
+                                    "process.include_top_n.by_memory": 5,
+                                    "process.cmdline.cache.enabled": true,
+                                    "process.cgroups.enabled": false,
+                                    "process.include_cpu_ticks": false,
+                                    "processes": [
+                                        ".*"
+                                    ]
+                                }
+                            },
+                            {
+                                "enabled": true,
+                                "data_stream": {
+                                    "type": "metrics",
+                                    "dataset": "system.process.summary"
+                                },
+                                "vars": {
+                                    "period": {
+                                        "value": "10s",
+                                        "type": "text"
+                                    },
+                                    "degrade_on_partial": {
+                                        "value": false,
+                                        "type": "bool"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "type": "yaml"
+                                    }
+                                },
+                                "id": "system/metrics-system.process.summary-f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                                "compiled_stream": {
+                                    "metricsets": [
+                                        "process_summary"
+                                    ],
+                                    "period": "10s"
+                                }
+                            },
+                            {
+                                "enabled": true,
+                                "data_stream": {
+                                    "type": "metrics",
+                                    "dataset": "system.socket_summary"
+                                },
+                                "vars": {
+                                    "period": {
+                                        "value": "10s",
+                                        "type": "text"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "type": "yaml"
+                                    }
+                                },
+                                "id": "system/metrics-system.socket_summary-f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                                "compiled_stream": {
+                                    "metricsets": [
+                                        "socket_summary"
+                                    ],
+                                    "period": "10s"
+                                }
+                            },
+                            {
+                                "enabled": true,
+                                "data_stream": {
+                                    "type": "metrics",
+                                    "dataset": "system.uptime"
+                                },
+                                "vars": {
+                                    "period": {
+                                        "value": "10s",
+                                        "type": "text"
+                                    },
+                                    "tags": {
+                                        "value": [],
+                                        "type": "text"
+                                    },
+                                    "processors": {
+                                        "type": "yaml"
+                                    }
+                                },
+                                "id": "system/metrics-system.uptime-f1ba4336-c168-4148-9b06-6e4ca7bac1f2",
+                                "compiled_stream": {
+                                    "metricsets": [
+                                        "uptime"
+                                    ],
+                                    "period": "10s"
+                                }
+                            }
+                        ],
+                        "vars": {
+                            "system.hostfs": {
+                                "type": "text"
+                            }
+                        },
+                        "id": "system/metrics-system-f1ba4336-c168-4148-9b06-6e4ca7bac1f2"
+                    }
+                ],
+                "revision": 1,
+                "created_at": "2026-09-24T23:20:38.630Z",
+                "created_by": "elastic",
+                "updated_at": "2026-09-24T23:20:38.630Z",
+                "updated_by": "elastic"
+            },
+            {
+                "id": "dfd1035a-7a2d-479a-8cc2-83b7445cd93d",
+                "version": "WzY4OCwzXQ==",
+                "spaceIds": [
+                    "default"
+                ],
+                "name": "edr_linux-workstation-policy",
+                "namespace": "",
+                "description": "edr for linux workstation targets",
+                "package": {
+                    "name": "endpoint",
+                    "title": "Elastic Defend",
+                    "version": "9.5.0",
+                    "requires_root": true,
+                    "fips_compatible": true
+                },
+                "enabled": true,
+                "policy_id": "8ea195e5-c090-47fe-bc94-519fe6d55641",
+                "policy_ids": [
+                    "8ea195e5-c090-47fe-bc94-519fe6d55641"
+                ],
+                "inputs": [
+                    {
+                        "type": "endpoint",
+                        "enabled": true,
+                        "streams": [],
+                        "config": {
+                            "integration_config": {
+                                "value": {
+                                    "type": "endpoint",
+                                    "endpointConfig": {
+                                        "preset": "EDRComplete"
+                                    }
+                                }
+                            },
+                            "artifact_manifest": {
+                                "value": {
+                                    "manifest_version": "1.0.0",
+                                    "schema_version": "v1",
+                                    "artifacts": {
+                                        "endpoint-exceptionlist-macos-v1": {
+                                            "encryption_algorithm": "none",
+                                            "decoded_sha256": "d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "decoded_size": 14,
+                                            "encoded_sha256": "f8e6afa1d5662f5b37f83337af774b5785b5b7f1daee08b7b00c2d6813874cda",
+                                            "encoded_size": 22,
+                                            "relative_url": "/api/fleet/artifacts/endpoint-exceptionlist-macos-v1/d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "compression_algorithm": "zlib"
+                                        },
+                                        "endpoint-exceptionlist-windows-v1": {
+                                            "encryption_algorithm": "none",
+                                            "decoded_sha256": "d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "decoded_size": 14,
+                                            "encoded_sha256": "f8e6afa1d5662f5b37f83337af774b5785b5b7f1daee08b7b00c2d6813874cda",
+                                            "encoded_size": 22,
+                                            "relative_url": "/api/fleet/artifacts/endpoint-exceptionlist-windows-v1/d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "compression_algorithm": "zlib"
+                                        },
+                                        "endpoint-exceptionlist-linux-v1": {
+                                            "encryption_algorithm": "none",
+                                            "decoded_sha256": "d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "decoded_size": 14,
+                                            "encoded_sha256": "f8e6afa1d5662f5b37f83337af774b5785b5b7f1daee08b7b00c2d6813874cda",
+                                            "encoded_size": 22,
+                                            "relative_url": "/api/fleet/artifacts/endpoint-exceptionlist-linux-v1/d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "compression_algorithm": "zlib"
+                                        },
+                                        "endpoint-trustlist-macos-v1": {
+                                            "encryption_algorithm": "none",
+                                            "decoded_sha256": "d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "decoded_size": 14,
+                                            "encoded_sha256": "f8e6afa1d5662f5b37f83337af774b5785b5b7f1daee08b7b00c2d6813874cda",
+                                            "encoded_size": 22,
+                                            "relative_url": "/api/fleet/artifacts/endpoint-trustlist-macos-v1/d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "compression_algorithm": "zlib"
+                                        },
+                                        "endpoint-trustlist-windows-v1": {
+                                            "encryption_algorithm": "none",
+                                            "decoded_sha256": "d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "decoded_size": 14,
+                                            "encoded_sha256": "f8e6afa1d5662f5b37f83337af774b5785b5b7f1daee08b7b00c2d6813874cda",
+                                            "encoded_size": 22,
+                                            "relative_url": "/api/fleet/artifacts/endpoint-trustlist-windows-v1/d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "compression_algorithm": "zlib"
+                                        },
+                                        "endpoint-trustlist-linux-v1": {
+                                            "encryption_algorithm": "none",
+                                            "decoded_sha256": "d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "decoded_size": 14,
+                                            "encoded_sha256": "f8e6afa1d5662f5b37f83337af774b5785b5b7f1daee08b7b00c2d6813874cda",
+                                            "encoded_size": 22,
+                                            "relative_url": "/api/fleet/artifacts/endpoint-trustlist-linux-v1/d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "compression_algorithm": "zlib"
+                                        },
+                                        "endpoint-eventfilterlist-macos-v1": {
+                                            "encryption_algorithm": "none",
+                                            "decoded_sha256": "d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "decoded_size": 14,
+                                            "encoded_sha256": "f8e6afa1d5662f5b37f83337af774b5785b5b7f1daee08b7b00c2d6813874cda",
+                                            "encoded_size": 22,
+                                            "relative_url": "/api/fleet/artifacts/endpoint-eventfilterlist-macos-v1/d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "compression_algorithm": "zlib"
+                                        },
+                                        "endpoint-eventfilterlist-windows-v1": {
+                                            "encryption_algorithm": "none",
+                                            "decoded_sha256": "d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "decoded_size": 14,
+                                            "encoded_sha256": "f8e6afa1d5662f5b37f83337af774b5785b5b7f1daee08b7b00c2d6813874cda",
+                                            "encoded_size": 22,
+                                            "relative_url": "/api/fleet/artifacts/endpoint-eventfilterlist-windows-v1/d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "compression_algorithm": "zlib"
+                                        },
+                                        "endpoint-eventfilterlist-linux-v1": {
+                                            "encryption_algorithm": "none",
+                                            "decoded_sha256": "d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "decoded_size": 14,
+                                            "encoded_sha256": "f8e6afa1d5662f5b37f83337af774b5785b5b7f1daee08b7b00c2d6813874cda",
+                                            "encoded_size": 22,
+                                            "relative_url": "/api/fleet/artifacts/endpoint-eventfilterlist-linux-v1/d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "compression_algorithm": "zlib"
+                                        },
+                                        "endpoint-hostisolationexceptionlist-macos-v1": {
+                                            "encryption_algorithm": "none",
+                                            "decoded_sha256": "d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "decoded_size": 14,
+                                            "encoded_sha256": "f8e6afa1d5662f5b37f83337af774b5785b5b7f1daee08b7b00c2d6813874cda",
+                                            "encoded_size": 22,
+                                            "relative_url": "/api/fleet/artifacts/endpoint-hostisolationexceptionlist-macos-v1/d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "compression_algorithm": "zlib"
+                                        },
+                                        "endpoint-hostisolationexceptionlist-windows-v1": {
+                                            "encryption_algorithm": "none",
+                                            "decoded_sha256": "d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "decoded_size": 14,
+                                            "encoded_sha256": "f8e6afa1d5662f5b37f83337af774b5785b5b7f1daee08b7b00c2d6813874cda",
+                                            "encoded_size": 22,
+                                            "relative_url": "/api/fleet/artifacts/endpoint-hostisolationexceptionlist-windows-v1/d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "compression_algorithm": "zlib"
+                                        },
+                                        "endpoint-hostisolationexceptionlist-linux-v1": {
+                                            "encryption_algorithm": "none",
+                                            "decoded_sha256": "d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "decoded_size": 14,
+                                            "encoded_sha256": "f8e6afa1d5662f5b37f83337af774b5785b5b7f1daee08b7b00c2d6813874cda",
+                                            "encoded_size": 22,
+                                            "relative_url": "/api/fleet/artifacts/endpoint-hostisolationexceptionlist-linux-v1/d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "compression_algorithm": "zlib"
+                                        },
+                                        "endpoint-blocklist-macos-v1": {
+                                            "encryption_algorithm": "none",
+                                            "decoded_sha256": "d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "decoded_size": 14,
+                                            "encoded_sha256": "f8e6afa1d5662f5b37f83337af774b5785b5b7f1daee08b7b00c2d6813874cda",
+                                            "encoded_size": 22,
+                                            "relative_url": "/api/fleet/artifacts/endpoint-blocklist-macos-v1/d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "compression_algorithm": "zlib"
+                                        },
+                                        "endpoint-blocklist-windows-v1": {
+                                            "encryption_algorithm": "none",
+                                            "decoded_sha256": "d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "decoded_size": 14,
+                                            "encoded_sha256": "f8e6afa1d5662f5b37f83337af774b5785b5b7f1daee08b7b00c2d6813874cda",
+                                            "encoded_size": 22,
+                                            "relative_url": "/api/fleet/artifacts/endpoint-blocklist-windows-v1/d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "compression_algorithm": "zlib"
+                                        },
+                                        "endpoint-blocklist-linux-v1": {
+                                            "encryption_algorithm": "none",
+                                            "decoded_sha256": "d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "decoded_size": 14,
+                                            "encoded_sha256": "f8e6afa1d5662f5b37f83337af774b5785b5b7f1daee08b7b00c2d6813874cda",
+                                            "encoded_size": 22,
+                                            "relative_url": "/api/fleet/artifacts/endpoint-blocklist-linux-v1/d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "compression_algorithm": "zlib"
+                                        },
+                                        "endpoint-trusteddevicelist-macos-v1": {
+                                            "encryption_algorithm": "none",
+                                            "decoded_sha256": "d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "decoded_size": 14,
+                                            "encoded_sha256": "f8e6afa1d5662f5b37f83337af774b5785b5b7f1daee08b7b00c2d6813874cda",
+                                            "encoded_size": 22,
+                                            "relative_url": "/api/fleet/artifacts/endpoint-trusteddevicelist-macos-v1/d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "compression_algorithm": "zlib"
+                                        },
+                                        "endpoint-trusteddevicelist-windows-v1": {
+                                            "encryption_algorithm": "none",
+                                            "decoded_sha256": "d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "decoded_size": 14,
+                                            "encoded_sha256": "f8e6afa1d5662f5b37f83337af774b5785b5b7f1daee08b7b00c2d6813874cda",
+                                            "encoded_size": 22,
+                                            "relative_url": "/api/fleet/artifacts/endpoint-trusteddevicelist-windows-v1/d801aa1fb7ddcc330a5e3173372ea6af4a3d08ec58074478e85aa5603e926658",
+                                            "compression_algorithm": "zlib"
+                                        }
+                                    }
+                                }
+                            },
+                            "policy": {
+                                "value": {
+                                    "meta": {
+                                        "license": "basic",
+                                        "license_uuid": "8720204f-6cc3-44c6-a6a1-c5ebcfb6d57f",
+                                        "cluster_uuid": "IdcLRkIYTIyGw4pncCpZNQ",
+                                        "cluster_name": "docker-cluster",
+                                        "cloud": false,
+                                        "serverless": false,
+                                        "billable": false
+                                    },
+                                    "global_manifest_version": "latest",
+                                    "global_telemetry_enabled": true,
+                                    "windows": {
+                                        "events": {
+                                            "credential_access": true,
+                                            "dll_and_driver_load": true,
+                                            "dns": true,
+                                            "file": true,
+                                            "network": true,
+                                            "process": true,
+                                            "registry": true,
+                                            "security": true
+                                        },
+                                        "device_control": {
+                                            "enabled": false,
+                                            "usb_storage": "audit"
+                                        },
+                                        "malware": {
+                                            "mode": "prevent",
+                                            "blocklist": true,
+                                            "on_write_scan": true
+                                        },
+                                        "ransomware": {
+                                            "mode": "off",
+                                            "supported": false
+                                        },
+                                        "memory_protection": {
+                                            "mode": "off",
+                                            "supported": false
+                                        },
+                                        "behavior_protection": {
+                                            "mode": "off",
+                                            "reputation_service": false,
+                                            "supported": false
+                                        },
+                                        "popup": {
+                                            "malware": {
+                                                "message": "",
+                                                "enabled": true
+                                            },
+                                            "ransomware": {
+                                                "message": "",
+                                                "enabled": false
+                                            },
+                                            "memory_protection": {
+                                                "message": "",
+                                                "enabled": false
+                                            },
+                                            "behavior_protection": {
+                                                "message": "",
+                                                "enabled": false
+                                            },
+                                            "device_control": {
+                                                "message": "",
+                                                "enabled": false
+                                            }
+                                        },
+                                        "logging": {
+                                            "file": "info"
+                                        },
+                                        "antivirus_registration": {
+                                            "mode": "sync_with_malware_prevent",
+                                            "enabled": true
+                                        },
+                                        "attack_surface_reduction": {
+                                            "credential_hardening": {
+                                                "enabled": false
+                                            }
+                                        }
+                                    },
+                                    "mac": {
+                                        "events": {
+                                            "dns": true,
+                                            "process": true,
+                                            "file": true,
+                                            "network": true,
+                                            "security": true
+                                        },
+                                        "malware": {
+                                            "mode": "prevent",
+                                            "blocklist": true,
+                                            "on_write_scan": true
+                                        },
+                                        "ransomware": {
+                                            "mode": "off",
+                                            "supported": false
+                                        },
+                                        "device_control": {
+                                            "enabled": false,
+                                            "usb_storage": "audit"
+                                        },
+                                        "behavior_protection": {
+                                            "mode": "off",
+                                            "reputation_service": false,
+                                            "supported": false
+                                        },
+                                        "memory_protection": {
+                                            "mode": "off",
+                                            "supported": false
+                                        },
+                                        "popup": {
+                                            "malware": {
+                                                "message": "",
+                                                "enabled": true
+                                            },
+                                            "ransomware": {
+                                                "message": "",
+                                                "enabled": false
+                                            },
+                                            "behavior_protection": {
+                                                "message": "",
+                                                "enabled": false
+                                            },
+                                            "memory_protection": {
+                                                "message": "",
+                                                "enabled": false
+                                            },
+                                            "device_control": {
+                                                "message": "",
+                                                "enabled": false
+                                            }
+                                        },
+                                        "logging": {
+                                            "file": "info"
+                                        },
+                                        "advanced": {
+                                            "capture_env_vars": "DYLD_INSERT_LIBRARIES,DYLD_FRAMEWORK_PATH,DYLD_LIBRARY_PATH,LD_PRELOAD"
+                                        }
+                                    },
+                                    "linux": {
+                                        "events": {
+                                            "dns": true,
+                                            "file": true,
+                                            "process": true,
+                                            "network": true,
+                                            "session_data": false,
+                                            "tty_io": false
+                                        },
+                                        "malware": {
+                                            "mode": "prevent",
+                                            "blocklist": true,
+                                            "on_write_scan": true
+                                        },
+                                        "behavior_protection": {
+                                            "mode": "off",
+                                            "reputation_service": false,
+                                            "supported": false
+                                        },
+                                        "memory_protection": {
+                                            "mode": "off",
+                                            "supported": false
+                                        },
+                                        "popup": {
+                                            "malware": {
+                                                "message": "",
+                                                "enabled": true
+                                            },
+                                            "behavior_protection": {
+                                                "message": "",
+                                                "enabled": false
+                                            },
+                                            "memory_protection": {
+                                                "message": "",
+                                                "enabled": false
+                                            }
+                                        },
+                                        "logging": {
+                                            "file": "info"
+                                        },
+                                        "advanced": {
+                                            "capture_env_vars": "LD_PRELOAD,LD_LIBRARY_PATH"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "id": "dfd1035a-7a2d-479a-8cc2-83b7445cd93d"
+                    }
+                ],
+                "revision": 1,
+                "created_at": "2026-09-24T23:29:48.679Z",
+                "created_by": "system",
+                "updated_at": "2026-09-24T23:29:48.679Z",
+                "updated_by": "system"
+            }
+        ],
+        "agents": 5,
+        "name": "linux-workstation-policy",
+        "namespace": "default",
+        "is_protected": false,
+        "status": "active",
+        "is_managed": false,
+        "revision": 2,
+        "updated_at": "2026-09-24T23:29:51.141Z",
+        "updated_by": "system",
+        "has_agent_version_conditions": false,
+        "min_agent_version": null,
+        "package_agent_version_conditions": null,
+        "unprivileged_agents": 0,
+        "fips_agents": 0,
+        "agents_per_version": [
+            {
+                "version": "8.15.3",
+                "count": 5
+            }
+        ]
+    }
+}
