@@ -10,17 +10,17 @@ output "vpc_name" {
 
 output "control_subnet_name" {
   description = "Name of the subnet used by control-side lab systems."
-  value       = google_compute_subnetwork.control.name
+  value       = google_compute_subnetwork.control_node.name
 }
 
 output "target_subnet_name" {
   description = "Name of the subnet used by target lab systems."
-  value       = google_compute_subnetwork.target.name
+  value       = google_compute_subnetwork.web_target.name
 }
 
 output "workstation_subnet_name" {
   description = "Name of the Windows workstation subnet."
-  value       = google_compute_subnetwork.workstation.name
+  value       = google_compute_subnetwork.linux_workstation_target.name
 }
 
 output "project_id" {

@@ -112,6 +112,14 @@ def provision_policy(capture_file):
 
     for pp in package_policies:
         pp_body = strip_fields(pp, PACKAGE_POLICY_STRIP_FIELDS)
+        # compiled_input lives nested inside each entry of "inputs",
+        # one level deeper than PACKAGE_POLICY_STRIP_FIELDS reaches.
+        # Confirmed against the real API: the fleet_server integration
+        # type carries this read-only, computed field and rejects it
+        # on create with "Additional properties are not allowed" --
+        # system/endpoint/nginx integrations didn't have it at all.
+        for inp in pp_body.get("inputs", []):
+            inp.pop("compiled_input", None)
         # Bind to the REAL, confirmed ID from the response above --
         # never assumed to match the pre-creation capture value, and
         # never inherited from the old capture's own policy_id.
