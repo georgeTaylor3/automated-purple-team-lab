@@ -17,7 +17,7 @@ resource "google_compute_instance" "web_target" {
   }
 
   network_interface {
-    subnetwork = google_compute_subnetwork.target.name
+    subnetwork = google_compute_subnetwork.web_target.name
     # No access_config block: no external IP, matching every other
     # workload in this lab.
   }
@@ -34,7 +34,7 @@ resource "google_compute_instance" "web_target" {
   }
 
   metadata = {
-    fleet-url              = "https://10.60.10.39:8220"
+    fleet-url              = "https://control-node:8220"
     fleet-enrollment-token = var.fleet_enrollment_token_web
     startup-script         = file("${path.module}/../scripts/web-target-setup.sh")
   }

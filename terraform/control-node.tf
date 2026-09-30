@@ -1,7 +1,7 @@
 resource "google_compute_address" "control_node_internal" {
   name         = "control-node-internal"
   region       = var.region
-  subnetwork   = google_compute_subnetwork.control.id
+  subnetwork   = google_compute_subnetwork.control_node.id
   address_type = "INTERNAL"
 
   description = "Reserved so Fleet Server's advertised URL survives control-node being destroyed and recreated. Already-enrolled agents can't rediscover Fleet Server on their own if the address changes -- a dynamic IP works until the first real recreation after agents exist."
@@ -26,7 +26,7 @@ resource "google_compute_instance" "control_node" {
   }
 
   network_interface {
-    subnetwork = google_compute_subnetwork.control.name
+    subnetwork = google_compute_subnetwork.control_node.name
     network_ip = google_compute_address.control_node_internal.address
     # no external IP
   }

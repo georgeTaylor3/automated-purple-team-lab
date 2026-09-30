@@ -3,24 +3,24 @@ resource "google_compute_network" "lab" {
   auto_create_subnetworks = false
 }
 
-resource "google_compute_subnetwork" "control" {
-  name                     = "control-subnet"
+resource "google_compute_subnetwork" "control_node" {
+  name                     = "control-node-subnet"
   ip_cidr_range            = var.control_subnet_cidr
   region                   = var.region
   network                  = google_compute_network.lab.id
   private_ip_google_access = true
 }
 
-resource "google_compute_subnetwork" "target" {
-  name                     = "target-subnet"
+resource "google_compute_subnetwork" "web_target" {
+  name                     = "web-target-subnet"
   ip_cidr_range            = var.target_subnet_cidr
   region                   = var.region
   network                  = google_compute_network.lab.id
   private_ip_google_access = true
 }
 
-resource "google_compute_subnetwork" "workstation" {
-  name                     = "workstation-subnet"
+resource "google_compute_subnetwork" "linux_workstation_target" {
+  name                     = "linux-workstation-target-subnet"
   ip_cidr_range            = var.workstation_subnet_cidr
   region                   = var.region
   network                  = google_compute_network.lab.id

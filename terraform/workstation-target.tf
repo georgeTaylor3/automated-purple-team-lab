@@ -17,7 +17,7 @@ resource "google_compute_instance" "linux_workstation_target" {
   }
 
   network_interface {
-    subnetwork = google_compute_subnetwork.workstation.name
+    subnetwork = google_compute_subnetwork.linux_workstation_target.name
     # No access_config block: no external IP, matching every other
     # workload in this lab.
   }
@@ -34,7 +34,7 @@ resource "google_compute_instance" "linux_workstation_target" {
   }
 
   metadata = {
-    fleet-url              = "https://10.60.10.39:8220"
+    fleet-url              = "https://control-node:8220"
     fleet-enrollment-token = var.fleet_enrollment_token_workstation
     startup-script         = file("${path.module}/../scripts/linux-workstation-target-setup.sh")
   }

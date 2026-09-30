@@ -14,7 +14,7 @@
 #
 # Required instance metadata keys (set via Terraform when the VM is
 # created, NOT baked into the image):
-#   fleet-url                 e.g. https://10.60.10.39:8220
+#   fleet-url                 e.g. https://<IP_ADDRESS>:8220
 #   fleet-enrollment-token
 #
 # CALDERA enrollment is deliberately not handled here -- same reasoning
@@ -110,7 +110,7 @@ SANDCAT_BIN="/opt/sandcat/splunkd"
 if [ ! -x "$SANDCAT_BIN" ]; then
   echo "No existing Sandcat binary found -- downloading."
   sudo mkdir -p /opt/sandcat
-  server="http://10.60.10.39:8888"
+  server="http://control-node:8888"
   curl -s -X POST -H "file:sandcat.go" -H "platform:linux" -H "architecture:amd64" "$server/file/download" | sudo tee "$SANDCAT_BIN" > /dev/null
   sudo chmod +x "$SANDCAT_BIN"
 else
@@ -120,7 +120,7 @@ fi
 # starting sandcat agent
 echo "Starting Sandcat"
 
-if sudo bash -c "nohup $SANDCAT_BIN -server http://10.60.10.39:8888 -group workstation-red > /var/log/sandcat.log 2>&1 &"; then
+if sudo bash -c "nohup $SANDCAT_BIN -server http://control-node:8888 -group workstation-red > /var/log/sandcat.log 2>&1 &"; then
   sleep 2
   if pgrep -f "$SANDCAT_BIN" > /dev/null; then
     echo "Caldera Agent running in background"
