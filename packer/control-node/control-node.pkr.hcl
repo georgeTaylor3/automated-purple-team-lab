@@ -10,6 +10,16 @@
 # time: install Docker, install git, and bake in a systemd service +
 # timer that pulls this repo and refreshes the container stack.
 #
+# purple-lab-deploy.sh itself (scripts/purple-lab-deploy.sh) is the
+# ONE piece that has to be baked into the image rather than pulled
+# fresh from git at boot -- its own first job is fetching that fresh
+# repo, so nothing can pull it before it exists. Everything it calls
+# AFTER that point (CALDERA's helper scripts, Fleet policy
+# provisioning, the host firewall) runs from the freshly-pulled repo
+# path, not a separately-baked copy -- a bug fix to any of those just
+# needs a normal git push and the next boot/timer cycle, no Packer
+# rebuild required.
+#
 # Two separate refresh cadences, deliberately not the same thing:
 #
 #   - This image (Docker/git/OS) changes rarely. Rebuild it manually
@@ -131,121 +141,22 @@ build {
     ]
   }
 
+  # purple-lab-deploy.sh is the ONE script that has to be baked in --
+  # see the file header comment for why. Everything else it calls
+  # (CALDERA's helpers, Fleet policy provisioning, the host firewall)
+  # runs from the freshly-pulled repo at boot, not staged here.
   provisioner "file" {
-    source      = "${path.root}/../../scripts/caldera-agent-cleanup.sh"
-    destination = "/tmp/caldera-agent-cleanup.sh"
-  }
-
-  provisioner "file" {
-    source      = "${path.root}/../../scripts/ensure-caldera-abilities.sh"
-    destination = "/tmp/ensure-caldera-abilities.sh"
+    source      = "${path.root}/../../scripts/purple-lab-deploy.sh"
+    destination = "/tmp/purple-lab-deploy.sh"
   }
 
   provisioner "shell" {
-
     inline = [
       "set -e",
       "sudo mkdir -p /opt/purple-lab",
 
-      "cat <<'SCRIPT' | sudo tee /usr/local/bin/purple-lab-deploy.sh",
-      "#!/usr/bin/env bash",
-      "set -euo pipefail",
-      "REPO_DIR=/opt/purple-lab",
-      "REPO_URL=\"${var.repo_url}\"",
-      "MARKER_FILE=\"$REPO_DIR/.last-built-commit\"",
-      "",
-      "if [ -d \"$REPO_DIR/.git\" ]; then",
-      "  echo \"Repo exists, pulling latest...\"",
-      "  cd \"$REPO_DIR\"",
-      "  git pull",
-      "else",
-      "  echo \"Cloning $REPO_URL...\"",
-      "  git clone \"$REPO_URL\" \"$REPO_DIR\"",
-      "  cd \"$REPO_DIR\"",
-      "fi",
-      "",
-      "echo \"Fetching secrets from Secret Manager...\"",
-      "ELASTIC_PASSWORD=$(gcloud secrets versions access latest --secret=elastic-password)",
-      "KIBANA_SYSTEM_PASSWORD=$(gcloud secrets versions access latest --secret=kibana-system-password)",
-      "KIBANA_ENCRYPTION_KEY=$(gcloud secrets versions access latest --secret=kibana-encryption-key)",
-      "FLEET_SERVER_SERVICE_TOKEN=$(gcloud secrets versions access latest --secret=fleet-server-service-token)",
-      "cat > \"$REPO_DIR/.env\" <<ENVFILE",
-      "ELASTIC_PASSWORD=$ELASTIC_PASSWORD",
-      "KIBANA_SYSTEM_PASSWORD=$KIBANA_SYSTEM_PASSWORD",
-      "KIBANA_ENCRYPTION_KEY=$KIBANA_ENCRYPTION_KEY",
-      "FLEET_SERVER_SERVICE_TOKEN=$FLEET_SERVER_SERVICE_TOKEN",
-      "ENVFILE",
-      "chmod 600 \"$REPO_DIR/.env\"",
-      "",
-      "docker compose up -d elasticsearch",
-      "",
-      "echo \"Waiting for Elasticsearch to accept requests...\"",
-      "for i in $(seq 1 30); do",
-      "  if curl -s -o /dev/null -u \"elastic:$ELASTIC_PASSWORD\" http://localhost:9200; then",
-      "    break",
-      "  fi",
-      "  sleep 5",
-      "done",
-      "",
-      "echo \"Syncing kibana_system password (needed every time Elasticsearch's data volume starts fresh -- setting ELASTICSEARCH_PASSWORD in Kibana's environment does not itself change the password Elasticsearch expects)...\"",
-      "curl -s -u \"elastic:$ELASTIC_PASSWORD\" -X POST \"http://localhost:9200/_security/user/kibana_system/_password\" \\",
-      "  -H \"Content-Type: application/json\" \\",
-      "  -d \"{\\\"password\\\":\\\"$KIBANA_SYSTEM_PASSWORD\\\"}\"",
-      "echo",
-      "",
-      "CURRENT_COMMIT=$(git rev-parse HEAD)",
-      "LAST_BUILT_COMMIT=\"\"",
-      "if [ -f \"$MARKER_FILE\" ]; then",
-      "  LAST_BUILT_COMMIT=$(cat \"$MARKER_FILE\")",
-      "fi",
-      "",
-      "if [ \"$CURRENT_COMMIT\" != \"$LAST_BUILT_COMMIT\" ]; then",
-      "  echo \"New commit detected ($CURRENT_COMMIT), rebuilding...\"",
-      "  docker compose build",
-      "  echo \"$CURRENT_COMMIT\" > \"$MARKER_FILE\"",
-      "else",
-      "  echo \"No changes since last build ($CURRENT_COMMIT), skipping rebuild.\"",
-      "fi",
-      "",
-      "docker compose up -d elasticsearch kibana caldera fleet-server",
-      "",
-      "echo \"Waiting for CALDERA to accept requests...\"",
-      "for i in $(seq 1 30); do",
-      "  if curl -s -o /dev/null http://localhost:8888; then",
-      "    break",
-      "  fi",
-      "  sleep 5",
-      "done",
-      "",
-      "echo \"Extracting fresh CALDERA red password from boot log...\"",
-      "CALDERA_FRESH_PASSWORD=$(docker compose logs caldera 2>&1 | sed -E 's/^caldera +\\| ?//' | awk '",
-      "  /USERNAME: red/ { in_red=1 }",
-      "  in_red && /PASSWORD:/ { in_pw=1; next }",
-      "  in_red && in_pw && /API_TOKEN:/ { in_pw=0; in_red=0 }",
-      "  in_pw { gsub(/[[:space:]]/, \"\"); printf \"%s\", $0 }",
-      "')",
-      "",
-      "if [ -z \"$CALDERA_FRESH_PASSWORD\" ]; then",
-      "  echo \"WARNING: could not extract fresh CALDERA password from log -- Secret Manager not updated.\"",
-      "else",
-      "  echo -n \"$CALDERA_FRESH_PASSWORD\" | gcloud secrets versions add caldera-red-password --data-file=-",
-      "  echo \"Fresh CALDERA red password published to Secret Manager.\"",
-      "fi",
-      "",
-      "echo \"Running CALDERA agent cleanup...\"",
-      "/usr/local/bin/caldera-agent-cleanup.sh || echo \"Cleanup failed or found nothing to clean -- non-fatal.\"",
-      "",
-      "echo \"Ensuring CALDERA abilities/adversaries are present...\"",
-      "/usr/local/bin/ensure-caldera-abilities.sh || echo \"Ability provisioning failed -- non-fatal.\"",
-      "",
-      "echo \"purple-lab-deploy.sh complete.\"",
-
-      "SCRIPT",
-
-      "sudo mv /tmp/caldera-agent-cleanup.sh /usr/local/bin/caldera-agent-cleanup.sh",
-      "sudo mv /tmp/ensure-caldera-abilities.sh /usr/local/bin/ensure-caldera-abilities.sh",
-      "sudo chmod +x /usr/local/bin/ensure-caldera-abilities.sh",
-      "sudo chmod +x /usr/local/bin/caldera-agent-cleanup.sh",
+      "sudo mv /tmp/purple-lab-deploy.sh /usr/local/bin/purple-lab-deploy.sh",
+      "sudo sed -i \"s|__REPO_URL__|${var.repo_url}|\" /usr/local/bin/purple-lab-deploy.sh",
       "sudo chmod +x /usr/local/bin/purple-lab-deploy.sh",
 
       "cat <<'UNIT' | sudo tee /etc/systemd/system/purple-lab-deploy.service",
