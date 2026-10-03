@@ -7,11 +7,13 @@
 #   3. Confirm the ACTUAL, LOADED ruleset (not just the source file)
 #      genuinely contains a correct SSH rule for the real IAP range.
 #   4. If that confirmation fails for any reason, immediately flush
-#      the ruleset back to empty rather than leave a broken SSH rule
-#      in place -- "no host firewall" is a known, safe, recoverable
-#      state (the separate VPC firewall layer still applies); "a host
-#      firewall missing its SSH rule" is the one genuinely
-#      unrecoverable state without GCP's Serial Console.
+#      our own table (inet filter) back to empty rather than leave a
+#      broken SSH rule in place -- scoped to this table alone, never
+#      a bare "flush ruleset", which would also wipe Docker's own
+#      separate nftables tables. "No host firewall" is a known, safe,
+#      recoverable state (the separate VPC firewall layer still
+#      applies); "a host firewall missing its SSH rule" is the one
+#      genuinely unrecoverable state without GCP's Serial Console.
 #
 # This script's own exit code is always 0 (non-fatal to the caller),
 # matching this project's existing pattern for boot-time steps that
@@ -54,9 +56,14 @@ if echo "$LOADED_SSH_RULE" | grep -q "$EXPECTED_SSH_RANGE"; then
 else
   echo "WARNING: loaded ruleset's SSH rule is missing or incorrect."
   echo "  Found: ${LOADED_SSH_RULE:-<no SSH rule found at all>}"
-  echo "Flushing ruleset back to empty (safe, recoverable state) rather than leaving this in place."
-  sudo nft flush ruleset
-  echo "Ruleset flushed. Host firewall NOT applied this boot -- fix scripts/security/control-node-nftables.conf and redeploy."
+  echo "Flushing our own table back to empty (safe, recoverable state) rather than leaving this in place."
+  # Scoped to inet filter alone -- the config file was already loaded
+  # successfully moments ago (we're past step 2), so this table
+  # definitely exists at this point. A bare 'nft flush ruleset' here
+  # would hit the same Docker-breaking bug the config file itself was
+  # fixed for -- never use it.
+  sudo nft flush table inet filter
+  echo "Table flushed. Host firewall NOT applied this boot -- fix scripts/security/control-node-nftables.conf and redeploy."
 fi
 
 exit 0
