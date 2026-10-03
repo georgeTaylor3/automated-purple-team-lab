@@ -2,10 +2,10 @@
 # purple-lab-deploy.sh
 #
 # Baked into the control-node image (via Packer's file provisioner,
-# installed to /usr/local/bin/) -- this is the one genuine exception
+# installed to /usr/local/bin/) -- this is an exception
 # to "everything runs from the freshly-pulled repo." It has to be,
 # since its own first job is fetching that fresh repo in the first
-# place; nothing can pull itself. Everything AFTER that point calls
+# place; nothing can pull itself (probably). Everything AFTER that point calls
 # scripts by their path inside the freshly-pulled $REPO_DIR, not
 # separately-baked copies -- a bug fix to any of those just needs a
 # normal git push and the next boot/timer cycle, no Packer rebuild.
@@ -73,17 +73,40 @@ echo "Waiting for CALDERA to accept requests..."
 curl -s -o /dev/null --retry 30 --retry-delay 5 --retry-connrefused \
   http://localhost:8888 || true
 
-echo "Waiting for Kibana to accept requests..."
+# Fleet-specific readiness, not just "is Kibana's base HTTP server
+# listening" -- confirmed the hard way: Kibana's own HTTP port can
+# accept connections well before its Fleet plugin has finished its
+# own, separate initialization. A generic port check was satisfied
+# while Fleet's real API still returned nothing, causing Fleet
+# policy provisioning below to fail with empty, non-JSON responses
+# even though CALDERA/Elasticsearch were genuinely fine. This probes
+# the actual endpoint ensure-fleet-policies.py depends on, not a
+# proxy for it.
+echo "Waiting for Kibana's Fleet API to accept requests..."
 curl -s -o /dev/null --retry 30 --retry-delay 5 --retry-connrefused \
-  http://localhost:5601 || true
+  -u "elastic:$ELASTIC_PASSWORD" -H "kbn-xsrf: true" -H "elastic-api-version: 2023-10-31" \
+  http://localhost:5601/api/fleet/agent_policies || true
 
+# Retried, not a single attempt -- confirmed the hard way: the CALDERA
+# readiness check above only confirms the HTTP port is listening, not
+# that the startup banner (containing this password) has actually
+# finished printing to the container's own log yet. A single
+# extraction attempt immediately after the port check can genuinely
+# run before the password line exists.
 echo "Extracting fresh CALDERA red password from boot log..."
-CALDERA_FRESH_PASSWORD=$(docker compose logs caldera 2>&1 | sed -E 's/^caldera +\| ?//' | awk '
-  /USERNAME: red/ { in_red=1 }
-  in_red && /PASSWORD:/ { in_pw=1; next }
-  in_red && in_pw && /API_TOKEN:/ { in_pw=0; in_red=0 }
-  in_pw { gsub(/[[:space:]]/, ""); printf "%s", $0 }
-')
+CALDERA_FRESH_PASSWORD=""
+for _ in $(seq 1 12); do
+  CALDERA_FRESH_PASSWORD=$(docker compose logs caldera 2>&1 | sed -E 's/^caldera +\| ?//' | awk '
+    /USERNAME: red/ { in_red=1 }
+    in_red && /PASSWORD:/ { in_pw=1; next }
+    in_red && in_pw && /API_TOKEN:/ { in_pw=0; in_red=0 }
+    in_pw { gsub(/[[:space:]]/, ""); printf "%s", $0 }
+  ')
+  if [ -n "$CALDERA_FRESH_PASSWORD" ]; then
+    break
+  fi
+  sleep 5
+done
 
 if [ -z "$CALDERA_FRESH_PASSWORD" ]; then
   echo "WARNING: could not extract fresh CALDERA password from log -- Secret Manager not updated."
@@ -93,10 +116,16 @@ else
 fi
 
 echo "Running CALDERA agent cleanup..."
-"$REPO_DIR/scripts/caldera-agent-cleanup.sh" || echo "Cleanup failed or found nothing to clean -- non-fatal."
+# Invoked via bash explicitly, not executed directly -- confirmed the
+# hard way: calling these scripts from the freshly-pulled repo
+# (rather than a Packer-installed /usr/local/bin/ copy, which used to
+# get an explicit chmod +x at build time) means nothing ever marks
+# them executable after a fresh git clone. Running them through bash
+# works regardless of the file's own executable bit.
+bash "$REPO_DIR/scripts/caldera-agent-cleanup.sh" || echo "Cleanup failed or found nothing to clean -- non-fatal."
 
 echo "Ensuring CALDERA abilities/adversaries are present..."
-"$REPO_DIR/scripts/ensure-caldera-abilities.sh" || echo "Ability provisioning failed -- non-fatal."
+bash "$REPO_DIR/scripts/ensure-caldera-abilities.sh" || echo "Ability provisioning failed -- non-fatal."
 
 echo "Ensuring Fleet agent policies are present..."
 export ELASTIC_PASSWORD
