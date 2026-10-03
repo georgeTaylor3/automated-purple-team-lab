@@ -23,7 +23,7 @@ variable "zone" {
 variable "control_subnet" {
   description = "Existing private subnet used for temporary Packer image builders."
   type        = string
-  default     = "control-subnet"
+  default     = "control-node-subnet"
 }
 
 variable "packer_deployer_service_account" {

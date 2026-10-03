@@ -35,7 +35,7 @@ source "googlecompute" "ubuntu_workstation" {
     "ubuntu-os-cloud"
   ]
 
-  # Temporary builder location: same control-subnet as the Windows builder,
+  # Temporary builder location: same control-node-subnet as the Windows builder,
   # for the same reasons (existing Cloud NAT, existing firewall policy).
   region             = var.region
   zone               = var.zone

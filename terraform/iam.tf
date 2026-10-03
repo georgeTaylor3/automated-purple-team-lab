@@ -15,6 +15,40 @@ resource "google_project_iam_custom_role" "packer_image_manager" {
   ]
 }
 
+resource "google_project_iam_custom_role" "packer_builder_instance_manager" {
+  role_id     = "packerBuilderInstanceManager"
+  title       = "Packer Builder Instance Manager"
+  description = "Permissions for packer-deployer to create and manage the temporary VM Packer builds images from. Deliberately separate from terraform_compute_instance_manager -- a genuinely different identity, for a genuinely different, temporary purpose, not the permanent instances Terraform manages."
+  project     = var.project_id
+  stage       = "GA"
+
+  permissions = [
+    "compute.instances.create",
+    "compute.instances.delete",
+    "compute.instances.get",
+    "compute.instances.setMetadata",
+    "compute.instances.setServiceAccount",
+    "compute.disks.create",
+    "compute.disks.delete",
+    "compute.disks.get",
+    "compute.disks.use",
+    "compute.images.useReadOnly",
+    "compute.subnetworks.use",
+    "compute.subnetworks.get",
+    "compute.networks.get",
+    "compute.zones.get",
+    "compute.machineTypes.get",
+    "compute.globalOperations.get",
+    "compute.zoneOperations.get",
+  ]
+}
+
+resource "google_project_iam_member" "packer_deployer_builder_instance_manager" {
+  project = var.project_id
+  role    = google_project_iam_custom_role.packer_builder_instance_manager.id
+  member  = "serviceAccount:packer-deployer@${var.project_id}.iam.gserviceaccount.com"
+}
+
 resource "google_project_iam_member" "packer_deployer_image_manager" {
   project = var.project_id
   role    = google_project_iam_custom_role.packer_image_manager.id

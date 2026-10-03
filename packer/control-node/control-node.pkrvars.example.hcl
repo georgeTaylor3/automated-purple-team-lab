@@ -16,7 +16,7 @@ packer_builder_service_account  = "packer-builder-sa@YOUR_GCP_PROJECT_ID.iam.gse
 region = "us-central1"
 zone   = "us-central1-a"
 
-control_subnet = "control-subnet"
+control_subnet = "control-node-subnet"
 
 machine_type = "e2-medium"
 disk_size    = 20
