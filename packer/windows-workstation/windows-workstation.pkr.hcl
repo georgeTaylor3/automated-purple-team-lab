@@ -87,11 +87,11 @@ source "googlecompute" "windows_workstation" {
   # Temporary builder location
   # -------------------------------------------------------------------------
   #
-  # The temporary VM is placed in control-subnet.
+  # The temporary VM is placed in control-node-subnet.
   #
   # This is image-factory infrastructure, not a permanent workstation.
   #
-  # control-subnet already has Cloud NAT, giving the builder an outbound path
+  # control-node-subnet already has Cloud NAT, giving the builder an outbound path
   # for HTTPS dependencies while firewall policy restricts its permitted
   # traffic.
   region             = var.region
