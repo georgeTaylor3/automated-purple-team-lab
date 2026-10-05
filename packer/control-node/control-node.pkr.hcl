@@ -99,6 +99,21 @@ build {
     ]
   }
 
+  # Full OS package upgrade. Runs before Docker's repo is added so only
+  # Ubuntu's own packages are upgraded here. NEEDRESTART_MODE=a keeps
+  # needrestart from waiting on a prompt in a non-interactive build.
+  provisioner "shell" {
+    inline = [
+      "set -e",
+      "sudo apt-get update",
+      "sudo NEEDRESTART_MODE=a DEBIAN_FRONTEND=noninteractive apt-get full-upgrade -y -o Dpkg::Options::=--force-confold",
+      "sudo apt-get autoremove -y",
+      "echo 'Packages still upgradable after full-upgrade:'",
+      "apt list --upgradable 2>/dev/null",
+      "echo 'OS packages upgraded.'"
+    ]
+  }
+
   provisioner "shell" {
     inline = [
       "set -e",
